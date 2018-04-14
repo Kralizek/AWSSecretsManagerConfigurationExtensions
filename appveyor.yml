@@ -1,5 +1,9 @@
 version: '{build}'
 
+environment:
+  AWS_ACCESS_KEY_ID: for_testing
+  AWS_SECRET_ACCESS_KEY: for_testing
+
 image: Visual Studio 2017
 
 configuration: Release
