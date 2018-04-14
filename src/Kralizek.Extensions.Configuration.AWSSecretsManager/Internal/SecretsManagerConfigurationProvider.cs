@@ -14,12 +14,9 @@ namespace Kralizek.Extensions.Configuration.Internal
     {
         private readonly IAmazonSecretsManager _client;
 
-        public SecretsManagerConfigurationProvider(AWSCredentials credentials, RegionEndpoint region)
+        public SecretsManagerConfigurationProvider(IAmazonSecretsManager client)
         {
-            if (credentials == null) throw new ArgumentNullException(nameof(credentials));
-            if (region == null) throw new ArgumentNullException(nameof(region));
-
-            _client = new AmazonSecretsManagerClient(credentials, region);
+            _client = client ?? throw new ArgumentNullException(nameof(client));
         }
 
         public override void Load()
@@ -83,7 +80,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 var nextToken = response?.NextToken;
 
-                var request = new ListSecretsRequest(){ NextToken = nextToken };
+                var request = new ListSecretsRequest() { NextToken = nextToken };
 
                 response = await _client.ListSecretsAsync(request);
 

@@ -12,5 +12,12 @@ namespace Microsoft.Extensions.Configuration
 
             return configurationBuilder;
         }
+
+        public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder, RegionEndpoint region)
+        {
+            configurationBuilder.Add(new SecretsManagerConfigurationSource() { Region = region });
+
+            return configurationBuilder;
+        }
     }
 }
