@@ -1,0 +1,2 @@
+# AWSSecretsManagerConfigurationExtensions
+AWS Secrets Manager configuration provider implementation for Microsoft.Extensions.Configuration.
