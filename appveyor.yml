@@ -1,0 +1,21 @@
+version: '{build}'
+
+image: Visual Studio 2017
+
+configuration: Release
+
+platform: Any CPU
+
+only_commits:
+  files:
+    - src/
+    
+artifacts:
+- path: outputs/*
+
+build_script:
+
+- ps: >-
+    .\build.ps1 -Target Pack
+
+test: off
