@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Amazon;
 using Amazon.Runtime;
@@ -12,11 +13,11 @@ namespace Kralizek.Extensions.Configuration.Internal
 {
     public class SecretsManagerConfigurationProvider : ConfigurationProvider
     {
-        private readonly IAmazonSecretsManager _client;
+        public IAmazonSecretsManager Client { get; }
 
         public SecretsManagerConfigurationProvider(IAmazonSecretsManager client)
         {
-            _client = client ?? throw new ArgumentNullException(nameof(client));
+            Client = client ?? throw new ArgumentNullException(nameof(client));
         }
 
         public override void Load()
@@ -30,21 +31,32 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             foreach (var secret in allSecrets)
             {
-                var secretValue = await _client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN });
+                var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN });
 
-                if (secretValue.SecretString != null)
+                var secretString = secretValue.SecretString;
+
+                if (secretString != null)
                 {
-                    var obj = JObject.Parse(secretValue.SecretString);
-
-                    var values = ExtractValues(obj as JToken, secret.Name);
-
-                    foreach (var value in values)
+                    if (IsJson(secretString))
                     {
-                        Data[value.key] = value.value.ToString();
+                        var obj = JObject.Parse(secretString);
+
+                        var values = ExtractValues(obj, secret.Name);
+
+                        foreach (var value in values)
+                        {
+                            Set(value.key, value.value);
+                        }
+                    }
+                    else
+                    {
+                        Set(secret.Name, secretString);
                     }
                 }
             }
         }
+
+        private static bool IsJson(string str) => str.StartsWith("[") || str.StartsWith("{");
 
         IEnumerable<(string key, string value)> ExtractValues(JToken token, string prefix)
         {
@@ -82,7 +94,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                 var request = new ListSecretsRequest() { NextToken = nextToken };
 
-                response = await _client.ListSecretsAsync(request);
+                response = await Client.ListSecretsAsync(request);
 
                 result.AddRange(response.SecretList);
 

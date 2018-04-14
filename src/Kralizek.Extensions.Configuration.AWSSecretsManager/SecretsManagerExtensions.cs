@@ -1,21 +1,22 @@
 using Amazon;
 using Amazon.Runtime;
 using Kralizek.Extensions.Configuration.Internal;
+// ReSharper disable CheckNamespace
 
 namespace Microsoft.Extensions.Configuration
 {
     public static class SecretsManagerExtensions
     {
-        public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder, AWSCredentials credentials, RegionEndpoint region)
+        public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder, AWSCredentials credentials = null, RegionEndpoint region = null)
         {
-            configurationBuilder.Add(new SecretsManagerConfigurationSource(credentials) { Region = region });
+            var source = new SecretsManagerConfigurationSource(credentials);
+            
+            if (region != null)
+            {
+                source.Region = region;
+            }
 
-            return configurationBuilder;
-        }
-
-        public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder, RegionEndpoint region)
-        {
-            configurationBuilder.Add(new SecretsManagerConfigurationSource() { Region = region });
+            configurationBuilder.Add(source);
 
             return configurationBuilder;
         }
