@@ -1,10 +1,10 @@
+using System;
 using NUnit.Framework;
 using Microsoft.Extensions.Configuration;
 using Moq;
 using Amazon;
 using Kralizek.Extensions.Configuration.Internal;
 using Amazon.Runtime;
-using Kralizek.Extensions.Configuration;
 
 namespace Tests
 {
@@ -37,6 +37,18 @@ namespace Tests
             SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, region: region);
 
             configurationBuilder.Verify(m => m.Add(It.Is<SecretsManagerConfigurationSource>(s => s.Region == region)));
+        }
+
+        [Test, AutoMoqData]
+        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_optionConfigurator(Action<SecretsManagerConfigurationProviderOptions> optionConfigurator)
+        {
+            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
+
+            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, optionConfigurator: optionConfigurator);
+
+            configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
+
+            Mock.Get(optionConfigurator).Verify(p => p(It.IsAny<SecretsManagerConfigurationProviderOptions>()), Times.Once);
         }
 
         [Test, AutoMoqData]

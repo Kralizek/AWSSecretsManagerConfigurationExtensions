@@ -11,12 +11,23 @@ using Newtonsoft.Json.Linq;
 
 namespace Kralizek.Extensions.Configuration.Internal
 {
+    public class SecretsManagerConfigurationProviderOptions
+    {
+        public Func<SecretListEntry, bool> SecretFilter { get; set; } = secret => true;
+
+        public Func<SecretListEntry, string, string> KeyGenerator { get; set; } = (secret, key) => key;
+    }
+
     public class SecretsManagerConfigurationProvider : ConfigurationProvider
     {
+        public SecretsManagerConfigurationProviderOptions Options { get; }
+
         public IAmazonSecretsManager Client { get; }
 
-        public SecretsManagerConfigurationProvider(IAmazonSecretsManager client)
+        public SecretsManagerConfigurationProvider(IAmazonSecretsManager client, SecretsManagerConfigurationProviderOptions options)
         {
+            Options = options ?? throw new ArgumentNullException(nameof(options));
+
             Client = client ?? throw new ArgumentNullException(nameof(client));
         }
 
@@ -31,6 +42,8 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             foreach (var secret in allSecrets)
             {
+                if (!Options.SecretFilter(secret)) continue;
+
                 var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN });
 
                 var secretString = secretValue.SecretString;
@@ -45,12 +58,14 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                         foreach (var value in values)
                         {
-                            Set(value.key, value.value);
+                            var key = Options.KeyGenerator(secret, value.key);
+                            Set(key, value.value);
                         }
                     }
                     else
                     {
-                        Set(secret.Name, secretString);
+                        var key = Options.KeyGenerator(secret, secret.Name);
+                        Set(key, secretString);
                     }
                 }
             }
