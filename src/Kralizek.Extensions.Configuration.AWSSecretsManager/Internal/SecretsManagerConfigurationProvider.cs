@@ -11,13 +11,6 @@ using Newtonsoft.Json.Linq;
 
 namespace Kralizek.Extensions.Configuration.Internal
 {
-    public class SecretsManagerConfigurationProviderOptions
-    {
-        public Func<SecretListEntry, bool> SecretFilter { get; set; } = secret => true;
-
-        public Func<SecretListEntry, string, string> KeyGenerator { get; set; } = (secret, key) => key;
-    }
-
     public class SecretsManagerConfigurationProvider : ConfigurationProvider
     {
         public SecretsManagerConfigurationProviderOptions Options { get; }
