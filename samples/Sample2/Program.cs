@@ -13,6 +13,7 @@ namespace Sample2
             /*
                 Uses default credentials
                 Uses eu-west-1 region
+                Uses default options
             */
             builder.AddSecretsManager(region: RegionEndpoint.EUWest1);
 

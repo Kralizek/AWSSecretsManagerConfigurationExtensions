@@ -8,10 +8,13 @@ namespace Kralizek.Extensions.Configuration.Internal
 {
     public class SecretsManagerConfigurationSource : IConfigurationSource
     {
-        public SecretsManagerConfigurationSource(AWSCredentials credentials = null)
+        public SecretsManagerConfigurationSource(AWSCredentials credentials = null, SecretsManagerConfigurationProviderOptions options = null)
         {
             Credentials = credentials;
+            Options = options ?? new SecretsManagerConfigurationProviderOptions();
         }
+
+        public SecretsManagerConfigurationProviderOptions Options { get; }
 
         public AWSCredentials Credentials {get; }
 
@@ -20,7 +23,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
             var client = CreateClient();
-            return new SecretsManagerConfigurationProvider(client);
+            return new SecretsManagerConfigurationProvider(client, Options);
         }
 
         private IAmazonSecretsManager CreateClient()

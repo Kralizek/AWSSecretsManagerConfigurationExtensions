@@ -13,7 +13,7 @@ namespace Tests
         private static IFixture CreateFixture()
         {
             IFixture fixture = new Fixture();
-            fixture.Customize(new AutoMoqCustomization());
+            fixture.Customize(new AutoMoqCustomization { GenerateDelegates = true });
 
             return fixture;
         }
