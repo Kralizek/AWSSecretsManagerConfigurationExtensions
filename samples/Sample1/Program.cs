@@ -12,6 +12,7 @@ namespace Sample1
             /*
                 Uses default credentials
                 Uses default region (us-east-1)
+                Uses default options
             */
             builder.AddSecretsManager();
 

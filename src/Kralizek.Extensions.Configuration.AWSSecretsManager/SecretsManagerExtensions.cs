@@ -12,11 +12,11 @@ namespace Microsoft.Extensions.Configuration
         public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder,
             AWSCredentials credentials = null,
             RegionEndpoint region = null,
-            Action<SecretsManagerConfigurationProviderOptions> optionConfigurator = null)
+            Action<SecretsManagerConfigurationProviderOptions> configurator = null)
         {
             var options = new SecretsManagerConfigurationProviderOptions();
 
-            optionConfigurator?.Invoke(options);
+            configurator?.Invoke(options);
 
             var source = new SecretsManagerConfigurationSource(credentials, options);
 

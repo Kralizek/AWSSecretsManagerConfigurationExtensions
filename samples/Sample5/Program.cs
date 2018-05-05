@@ -1,8 +1,7 @@
 ﻿using System;
-using Amazon.Runtime;
 using Microsoft.Extensions.Configuration;
 
-namespace Sample3
+namespace Sample5
 {
     class Program
     {
@@ -11,18 +10,15 @@ namespace Sample3
             var builder = new ConfigurationBuilder();
 
             /*
-                Uses credentials obtained from store
+                Uses default credentials
                 Uses default region (us-east-1)
-                Uses default options
+                Uses options to customize how keys are generated (all uppercase)
             */
-
-            var chain = new Amazon.Runtime.CredentialManagement.CredentialProfileStoreChain();
-
-            if (chain.TryGetAWSCredentials("MyProfile", out var credentials))
+            builder.AddSecretsManager(configurator: options =>
             {
-                builder.AddSecretsManager(credentials);
-            }
-            
+                options.KeyGenerator = (entry, key) => key.ToUpper();
+            });
+
             var configuration = builder.Build();
 
             Console.WriteLine("Hello World!");

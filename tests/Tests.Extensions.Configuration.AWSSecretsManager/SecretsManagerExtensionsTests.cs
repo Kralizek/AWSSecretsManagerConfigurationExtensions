@@ -44,7 +44,7 @@ namespace Tests
         {
             configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
 
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, optionConfigurator: optionConfigurator);
+            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, configurator: optionConfigurator);
 
             configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
 
