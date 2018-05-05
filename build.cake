@@ -1,4 +1,4 @@
-var target = Argument<string>("Target", "Build");
+var target = Argument<string>("Target", "Test");
 
 var SolutionFile = MakeAbsolute(File("SecretsManager.sln"));
 var outputFolder = SolutionFile.GetDirectory().Combine("outputs");
