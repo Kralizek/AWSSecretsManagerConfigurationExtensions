@@ -26,18 +26,18 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         public override void Load()
         {
-            LoadAsync().Wait();
+            LoadAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         async Task LoadAsync()
         {
-            var allSecrets = await FetchAllSecretsAsync();
+            var allSecrets = await FetchAllSecretsAsync().ConfigureAwait(false);
 
             foreach (var secret in allSecrets)
             {
                 if (!Options.SecretFilter(secret)) continue;
 
-                var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN });
+                var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN }).ConfigureAwait(false);
 
                 var secretString = secretValue.SecretString;
 
@@ -102,7 +102,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                 var request = new ListSecretsRequest() { NextToken = nextToken };
 
-                response = await Client.ListSecretsAsync(request);
+                response = await Client.ListSecretsAsync(request).ConfigureAwait(false);
 
                 result.AddRange(response.SecretList);
 
