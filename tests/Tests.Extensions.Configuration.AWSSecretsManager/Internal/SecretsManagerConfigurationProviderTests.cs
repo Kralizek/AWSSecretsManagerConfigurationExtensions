@@ -95,6 +95,31 @@ namespace Tests.Internal
         }
 
         [Test, AutoMoqData]
+        public void Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray test)
+        {
+            var secretListResponse = fixture.Build<ListSecretsResponse>()
+                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
+                                            .With(p => p.NextToken, null)
+                                            .Create();
+
+            var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
+                                                .With(p => p.SecretString, JsonConvert.SerializeObject(test))
+                                                .Without(p => p.SecretBinary)
+                                                .Create();
+
+            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+
+            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+
+            var sut = CreateSystemUnderTest();
+
+            sut.Load();
+
+            Assert.That(sut.Get(testEntry.Name, nameof(RootObjectWithArray.Properties), "0"), Is.EqualTo(test.Properties[0]));
+            Assert.That(sut.Get(testEntry.Name, nameof(RootObjectWithArray.Mids), "0", nameof(MidLevel.Property)), Is.EqualTo(test.Mids[0].Property));
+        }
+
+        [Test, AutoMoqData]
         public void Values_in_binary_are_ignored(SecretListEntry testEntry)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
