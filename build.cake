@@ -106,7 +106,12 @@ Task("RunTests")
                     NoRestore = true,
                     Logger = $"trx;LogFileName={testResultFile.FullPath}",
                     Filter = "TestCategory!=External",
-                    Framework = framework
+                    Framework = framework,
+                    EnvironmentVariables = new Dictionary<string, string>
+                    {
+                        ["AWS_ACCESS_KEY_ID"] = "for_testing",
+                        ["AWS_SECRET_ACCESS_KEY"] = "for_testing"
+                    }
                 };
 
                 DotCoverCover(c => c.DotNetCoreTest(projectFile, settings), coverageResultFile, dotCoverSettings);
