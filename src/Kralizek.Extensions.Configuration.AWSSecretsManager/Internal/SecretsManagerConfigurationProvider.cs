@@ -102,8 +102,16 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                     break;
                 }
+                case JValue jValue:
+                {
+                    var value = jValue.Value.ToString();
+                    yield return (prefix, value);
+                    break;
+                }
                 default:
+                {
                     throw new FormatException("unsupported json token");
+                }
             }
         }
 
