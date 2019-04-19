@@ -1,4 +1,4 @@
-version: '{build}'
+max_jobs: 1
 
 environment:
   AWS_ACCESS_KEY_ID: for_testing
@@ -6,20 +6,38 @@ environment:
 
 image: Visual Studio 2017
 
-configuration: Release
+cache:
+  - '%LocalAppData%\NuGet\v3-cache'
 
-platform: Any CPU
+nuget:
+  account_feed: false
+  project_feed: false
+  disable_publish_on_pr: true
 
-only_commits:
-  files:
-    - src/
-    
-artifacts:
-- path: outputs/*
+install:
+  - cmd: dotnet tool install -g Cake.Tool --version 0.33.0
 
 build_script:
-
-- ps: >-
-    .\build.ps1 -Target Pack
+  - cmd: dotnet cake --target=Full
 
 test: off
+
+artifacts:
+  - path: outputs\*.nupkg
+    name: packages
+  - path: outputs\*.snupkg
+    name: symbols
+  - path: outputs\tests\report
+    name: report
+    type: zip
+
+deploy:
+  - provider: Environment
+    name: MyGet EMG Public
+    on:
+      branch: master
+  - provider: Environment
+    name: NuGet EMG
+    on:
+      branch: master
+      appveyor_repo_tag: true
