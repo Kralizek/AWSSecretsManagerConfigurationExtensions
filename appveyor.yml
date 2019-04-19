@@ -34,7 +34,7 @@ artifacts:
 
 deploy:
   - provider: Environment
-    name: NuGet EMG
+    name: NuGet
     on:
       branch: master
       appveyor_repo_tag: true
