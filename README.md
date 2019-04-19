@@ -102,7 +102,7 @@ You can see an example [here](/samples/Sample3).
 
 ### AWS Region
 
-By default, this library fetches the secrets registered in the AWS region `us-east-1`. You can change that by passing the desired region.
+By default, this library fetches the secrets registered in the AWS region associated with the default profile. You can change that by passing the desired region.
 
 ```csharp
 builder.AddSecretsManager(region: RegionEndpoint.EUWest1);

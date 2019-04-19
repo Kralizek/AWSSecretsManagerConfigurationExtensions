@@ -1,5 +1,4 @@
 ﻿using System;
-using Amazon.Runtime;
 using Microsoft.Extensions.Configuration;
 
 namespace Sample3
@@ -12,15 +11,16 @@ namespace Sample3
 
             /*
                 Uses credentials obtained from store
-                Uses default region (us-east-1)
+                Uses default region (from stored profile)
                 Uses default options
             */
 
             var chain = new Amazon.Runtime.CredentialManagement.CredentialProfileStoreChain();
 
-            if (chain.TryGetAWSCredentials("MyProfile", out var credentials))
+            if (chain.TryGetProfile("MyProfile", out var profile))
             {
-                builder.AddSecretsManager(credentials);
+                var credentials = profile.GetAWSCredentials(profile.CredentialProfileStore);
+                builder.AddSecretsManager(credentials, profile.Region);
             }
             
             var configuration = builder.Build();

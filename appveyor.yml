@@ -3,6 +3,7 @@ max_jobs: 1
 environment:
   AWS_ACCESS_KEY_ID: for_testing
   AWS_SECRET_ACCESS_KEY: for_testing
+  AWS_REGION: us-east-1
 
 image: Visual Studio 2017
 

@@ -11,7 +11,7 @@ namespace Sample5
 
             /*
                 Uses default credentials
-                Uses default region (us-east-1)
+                Uses default region
                 Uses options to customize how keys are generated (all uppercase)
             */
             builder.AddSecretsManager(configurator: options =>

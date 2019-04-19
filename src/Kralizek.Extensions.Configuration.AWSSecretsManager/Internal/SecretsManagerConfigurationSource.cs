@@ -18,7 +18,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         public AWSCredentials Credentials {get; }
 
-        public RegionEndpoint Region { get; set; } = RegionEndpoint.USEast1;
+        public RegionEndpoint Region { get; set; }
 
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
@@ -28,9 +28,19 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         private IAmazonSecretsManager CreateClient()
         {
+            if (Credentials == null && Region == null)
+            {
+                return new AmazonSecretsManagerClient();
+            }
+
             if (Credentials == null)
             {
                 return new AmazonSecretsManagerClient(Region);
+            }
+
+            if (Region == null)
+            {
+                return new AmazonSecretsManagerClient(Credentials);
             }
 
             return new AmazonSecretsManagerClient(Credentials, Region);

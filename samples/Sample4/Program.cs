@@ -12,7 +12,7 @@ namespace Sample4
 
             /*
                 Uses default credentials
-                Uses default region (us-east-1)
+                Uses default region
                 Accepts only a fixed set of secrets, by their ARN
             */
 
