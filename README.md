@@ -155,8 +155,14 @@ You can see an example [here](/samples/Sample5).
 
 This library follows [Semantic Versioning 2.0.0](http://semver.org/spec/v2.0.0.html) for the public releases (published to the [nuget.org](https://www.nuget.org/)).
 
-## Build
+## How to build
 
-This repository uses [Cake](https://cakebuild.net/) as a build engine. If you would like to build this library locally, run the `.\build.cmd` command from any Windows console (Command Prompt or PowerShell) and wait for the result.
+This project uses [Cake](https://cakebuild.net/) as a build engine.
 
-The script will take care of restoring all dependencies, building all projects and executing all tests.
+If you would like to build Nybus locally, just execute the `build.cake` script.
+
+You can do it by using the .NET tool created by CAKE authors and use it to execute the build script.
+```powershell
+dotnet tool install -g Cake.Tool
+dotnet cake
+```
