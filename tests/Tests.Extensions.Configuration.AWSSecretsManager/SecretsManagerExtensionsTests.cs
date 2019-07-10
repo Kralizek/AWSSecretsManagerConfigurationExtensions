@@ -70,5 +70,6 @@ namespace Tests
 
             configurationBuilder.Verify(m => m.Add(It.Is<SecretsManagerConfigurationSource>(s => s.Region == region)));
         }
+
     }
 }

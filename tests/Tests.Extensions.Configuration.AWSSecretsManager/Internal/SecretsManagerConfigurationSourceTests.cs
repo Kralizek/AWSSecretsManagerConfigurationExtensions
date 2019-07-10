@@ -1,4 +1,5 @@
 using Amazon.Runtime;
+using Amazon.SecretsManager;
 using Kralizek.Extensions.Configuration.Internal;
 using Microsoft.Extensions.Configuration;
 using NUnit.Framework;
@@ -40,5 +41,29 @@ namespace Tests.Internal
             Assert.That(provider, Is.Not.Null);
             Assert.That(provider, Is.InstanceOf<SecretsManagerConfigurationProvider>());
         }
+
+        [Test, AutoMoqData]
+        public void Build_invokes_config_client_method(IConfigurationBuilder configurationBuilder)
+        {
+            bool configInvoked = false;
+            AmazonSecretsManagerConfig usedConfig = null;
+            var sut = new SecretsManagerConfigurationSource(options: new SecretsManagerConfigurationProviderOptions()
+            {
+                ConfigureSecretsManagerConfig = c =>
+                {
+                    usedConfig = c;
+                    configInvoked = true;
+                }
+            });
+            
+
+            var provider = sut.Build(configurationBuilder);
+
+            Assert.That(configInvoked, Is.True);
+            Assert.That(usedConfig, Is.Not.Null);
+            
+        }
+
+
     }
 }

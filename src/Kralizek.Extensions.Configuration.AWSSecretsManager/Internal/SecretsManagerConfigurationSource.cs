@@ -23,27 +23,27 @@ namespace Kralizek.Extensions.Configuration.Internal
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
             var client = CreateClient();
+            
             return new SecretsManagerConfigurationProvider(client, Options);
         }
 
         private IAmazonSecretsManager CreateClient()
         {
-            if (Credentials == null && Region == null)
+            var clientConfig = new AmazonSecretsManagerConfig
             {
-                return new AmazonSecretsManagerClient();
-            }
+                RegionEndpoint = Region
+            };
+
+
+            Options.ConfigureSecretsManagerConfig(clientConfig);
 
             if (Credentials == null)
             {
-                return new AmazonSecretsManagerClient(Region);
+                return new AmazonSecretsManagerClient(clientConfig);
             }
 
-            if (Region == null)
-            {
-                return new AmazonSecretsManagerClient(Credentials);
-            }
 
-            return new AmazonSecretsManagerClient(Credentials, Region);
+            return new AmazonSecretsManagerClient(Credentials, clientConfig);
         }
     }
 
