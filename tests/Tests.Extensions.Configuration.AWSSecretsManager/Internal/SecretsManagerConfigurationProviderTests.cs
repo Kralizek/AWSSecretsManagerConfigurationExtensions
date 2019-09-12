@@ -196,5 +196,25 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name), Is.Null);
             Assert.That(sut.Get(newKey), Is.EqualTo(getSecretValueResponse.SecretString));
         }
+        
+        [Test, AutoMoqData]
+        public void Should_throw_on_missing_secret_value(SecretListEntry testEntry)
+        {
+            
+            var secretListResponse = fixture.Build<ListSecretsResponse>()
+                .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
+                .With(p => p.NextToken, null)
+                .Create();
+
+           
+            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+
+            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).Throws(new ResourceNotFoundException("Oops"));
+
+            var sut = CreateSystemUnderTest();
+
+            Assert.Throws<MissingSecretValueException>(() => sut.Load());
+
+        }
     }
 }
