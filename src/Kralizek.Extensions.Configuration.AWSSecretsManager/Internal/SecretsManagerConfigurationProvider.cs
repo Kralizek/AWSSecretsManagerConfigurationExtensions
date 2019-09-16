@@ -63,7 +63,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 }
                 catch (ResourceNotFoundException e)
                 {
-                    throw new MissingSecretValueException($"Error retrieving secret value (Secret: {secret.Name} Arn: {secret.ARN})", e);
+                    throw new MissingSecretValueException($"Error retrieving secret value (Secret: {secret.Name} Arn: {secret.ARN})", secret.Name, secret.ARN, e);
 
                 }
             }
