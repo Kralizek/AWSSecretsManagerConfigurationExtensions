@@ -151,6 +151,22 @@ builder.AddSecretsManager(configurator: options =>
 
 You can see an example [here](/samples/Sample5).
 
+### Customizing the AmazonSecretsManagerConfig, for example to use localstack
+
+There are some situations where you might want to customize how the AmazonSecretsManagerConfig is built, for example when you want to use
+[localstack](https://github.com/localstack/localstack) during local development. In those cases, you should customize the ServiceUrl.
+
+```csharp
+
+builder.AddSecretsManager(configurator: options =>
+{
+    options.ConfigureSecretsManagerConfig = c => {
+        c.ServiceUrl = "http://localhost:4584" // The url that's used by localstack
+    };
+});
+
+```
+
 ## Versioning
 
 This library follows [Semantic Versioning 2.0.0](http://semver.org/spec/v2.0.0.html) for the public releases (published to the [nuget.org](https://www.nuget.org/)).
