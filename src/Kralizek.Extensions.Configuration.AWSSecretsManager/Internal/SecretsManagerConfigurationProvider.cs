@@ -32,31 +32,39 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             foreach (var secret in allSecrets)
             {
-                if (!Options.SecretFilter(secret)) continue;
-
-                var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest {SecretId = secret.ARN}).ConfigureAwait(false);
-
-                var secretString = secretValue.SecretString;
-
-                if (secretString != null)
+                try
                 {
-                    if (IsJson(secretString))
+                    if (!Options.SecretFilter(secret)) continue;
+
+                    var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest {SecretId = secret.ARN}).ConfigureAwait(false);
+
+                    var secretString = secretValue.SecretString;
+
+                    if (secretString != null)
                     {
-                        var obj = JObject.Parse(secretString);
-
-                        var values = ExtractValues(obj, secret.Name);
-
-                        foreach (var value in values)
+                        if (IsJson(secretString))
                         {
-                            var key = Options.KeyGenerator(secret, value.key);
-                            Set(key, value.value);
+                            var obj = JObject.Parse(secretString);
+
+                            var values = ExtractValues(obj, secret.Name);
+
+                            foreach (var value in values)
+                            {
+                                var key = Options.KeyGenerator(secret, value.key);
+                                Set(key, value.value);
+                            }
+                        }
+                        else
+                        {
+                            var key = Options.KeyGenerator(secret, secret.Name);
+                            Set(key, secretString);
                         }
                     }
-                    else
-                    {
-                        var key = Options.KeyGenerator(secret, secret.Name);
-                        Set(key, secretString);
-                    }
+                }
+                catch (ResourceNotFoundException e)
+                {
+                    throw new MissingSecretValueException($"Error retrieving secret value (Secret: {secret.Name} Arn: {secret.ARN})", secret.Name, secret.ARN, e);
+
                 }
             }
         }
