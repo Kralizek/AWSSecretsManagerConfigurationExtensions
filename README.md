@@ -175,7 +175,7 @@ This library follows [Semantic Versioning 2.0.0](http://semver.org/spec/v2.0.0.h
 
 This project uses [Cake](https://cakebuild.net/) as a build engine.
 
-If you would like to build Nybus locally, just execute the `build.cake` script.
+If you would like to build this project locally, just execute the `build.cake` script.
 
 You can do it by using the .NET tool created by CAKE authors and use it to execute the build script.
 ```powershell
