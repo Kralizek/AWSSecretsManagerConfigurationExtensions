@@ -1,15 +1,14 @@
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using AutoFixture;
-using Kralizek.Extensions.Configuration;
 using Kralizek.Extensions.Configuration.Internal;
 using Moq;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Threading;
 using Tests.Types;
 
 namespace Tests.Internal
@@ -117,6 +116,33 @@ namespace Tests.Internal
 
             Assert.That(sut.Get(testEntry.Name, nameof(RootObjectWithArray.Properties), "0"), Is.EqualTo(test.Properties[0]));
             Assert.That(sut.Get(testEntry.Name, nameof(RootObjectWithArray.Mids), "0", nameof(MidLevel.Property)), Is.EqualTo(test.Mids[0].Property));
+        }
+
+        [Test, AutoMoqData]
+        public void Array_Of_Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray[] test)
+        {
+            var secretListResponse = fixture.Build<ListSecretsResponse>()
+                .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
+                .With(p => p.NextToken, null)
+                .Create();
+
+            var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
+                .With(p => p.SecretString, JsonConvert.SerializeObject(test))
+                .Without(p => p.SecretBinary)
+                .Create();
+
+            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+
+            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+
+            var sut = CreateSystemUnderTest();
+
+            sut.Load();
+
+            Assert.That(sut.Get(testEntry.Name, "0", nameof(RootObjectWithArray.Properties), "0"), Is.EqualTo(test[0].Properties[0]));
+            Assert.That(sut.Get(testEntry.Name, "0", nameof(RootObjectWithArray.Mids), "0", nameof(MidLevel.Property)), Is.EqualTo(test[0].Mids[0].Property));
+            Assert.That(sut.Get(testEntry.Name, "1", nameof(RootObjectWithArray.Properties), "0"), Is.EqualTo(test[1].Properties[0]));
+            Assert.That(sut.Get(testEntry.Name, "1", nameof(RootObjectWithArray.Mids), "0", nameof(MidLevel.Property)), Is.EqualTo(test[1].Mids[0].Property));
         }
 
         [Test, AutoMoqData]

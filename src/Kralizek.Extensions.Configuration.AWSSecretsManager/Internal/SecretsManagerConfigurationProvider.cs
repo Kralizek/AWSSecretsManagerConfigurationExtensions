@@ -44,7 +44,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                     {
                         if (IsJson(secretString))
                         {
-                            var obj = JObject.Parse(secretString);
+                            var obj = JToken.Parse(secretString);
 
                             var values = ExtractValues(obj, secret.Name);
 
