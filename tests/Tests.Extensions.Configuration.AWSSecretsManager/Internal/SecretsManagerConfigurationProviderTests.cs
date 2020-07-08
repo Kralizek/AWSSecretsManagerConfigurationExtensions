@@ -5,10 +5,12 @@ using Kralizek.Extensions.Configuration.Internal;
 using Moq;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Tests.Types;
 
 namespace Tests.Internal
@@ -241,6 +243,42 @@ namespace Tests.Internal
 
             Assert.Throws<MissingSecretValueException>(() => sut.Load());
 
+        }
+
+        [Test, AutoMoqData]
+        public async Task Should_poll_and_reload_when_secrets_changed(SecretListEntry testEntry)
+        {
+            var secretListResponse = fixture.Build<ListSecretsResponse>()
+                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
+                                            .With(p => p.NextToken, null)
+                                            .Create();
+            var getSecretValueInitialResponse = fixture.Build<GetSecretValueResponse>()
+                                                .With(p => p.SecretString)
+                                                .Without(p => p.SecretBinary)
+                                                .Create();
+            var getSecretValueUpdatedResponse = fixture.Build<GetSecretValueResponse>()
+                                                .With(p => p.SecretString)
+                                                .Without(p => p.SecretBinary)
+                                                .Create();
+            var getSecretValueCallCount = 0;
+
+            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+
+            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => Interlocked.Increment(ref getSecretValueCallCount) <= 1 ? getSecretValueInitialResponse : getSecretValueUpdatedResponse);
+
+            using (var sut = CreateSystemUnderTest(new SecretsManagerConfigurationProviderOptions { PollingInterval = TimeSpan.FromMilliseconds(100) }))
+            {
+                var reloadTask = new TaskCompletionSource<object>();
+                sut.GetReloadToken().RegisterChangeCallback(_ => reloadTask.TrySetResult(null), null);
+
+                sut.Load();
+                Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueInitialResponse.SecretString));
+
+                await reloadTask.Task;
+
+                Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
+            }
         }
     }
 }

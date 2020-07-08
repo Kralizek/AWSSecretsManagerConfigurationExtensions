@@ -10,5 +10,7 @@ namespace Kralizek.Extensions.Configuration.Internal {
         public Func<SecretListEntry, string, string> KeyGenerator { get; set; } = (secret, key) => key;
 
         public Action<AmazonSecretsManagerConfig> ConfigureSecretsManagerConfig { get; set; } = _ => { };
+
+        public TimeSpan? PollingInterval { get; set; }
     }
 }
