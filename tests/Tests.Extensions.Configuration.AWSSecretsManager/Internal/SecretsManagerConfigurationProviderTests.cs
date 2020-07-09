@@ -246,7 +246,7 @@ namespace Tests.Internal
         }
 
         [Test, AutoMoqData]
-        public async Task Should_poll_and_reload_when_secrets_changed(SecretListEntry testEntry)
+        public void Should_poll_and_reload_when_secrets_changed(SecretListEntry testEntry)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
@@ -269,14 +269,16 @@ namespace Tests.Internal
 
             using (var sut = CreateSystemUnderTest(new SecretsManagerConfigurationProviderOptions { PollingInterval = TimeSpan.FromMilliseconds(100) }))
             {
-                var reloadTask = new TaskCompletionSource<object>();
-                sut.GetReloadToken().RegisterChangeCallback(_ => reloadTask.TrySetResult(null), null);
+                var changeCallback = new Mock<Action<object>>();
+                var changeCallbackState = new object();
+                sut.GetReloadToken().RegisterChangeCallback(changeCallback.Object, changeCallbackState);
 
                 sut.Load();
                 Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueInitialResponse.SecretString));
 
-                await reloadTask.Task;
+                Thread.Sleep(200);
 
+                changeCallback.Verify(c => c(changeCallbackState));
                 Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
             }
         }
