@@ -228,11 +228,10 @@ namespace Tests.Internal
         [Test, AutoMoqData]
         public void Should_throw_on_missing_secret_value(SecretListEntry testEntry)
         {
-            
             var secretListResponse = fixture.Build<ListSecretsResponse>()
-                .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                .With(p => p.NextToken, null)
-                .Create();
+                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
+                                            .With(p => p.NextToken, null)
+                                            .Create();
 
            
             mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
@@ -246,39 +245,39 @@ namespace Tests.Internal
         }
 
         [Test, AutoMoqData]
-        public void Should_poll_and_reload_when_secrets_changed(SecretListEntry testEntry)
+        public void Should_poll_and_reload_when_secrets_changed(SecretListEntry testEntry, Action<object> changeCallback, object changeCallbackState)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
                                             .With(p => p.NextToken, null)
                                             .Create();
+
             var getSecretValueInitialResponse = fixture.Build<GetSecretValueResponse>()
-                                                .With(p => p.SecretString)
-                                                .Without(p => p.SecretBinary)
-                                                .Create();
+                                                       .With(p => p.SecretString)
+                                                       .Without(p => p.SecretBinary)
+                                                       .Create();
+
             var getSecretValueUpdatedResponse = fixture.Build<GetSecretValueResponse>()
-                                                .With(p => p.SecretString)
-                                                .Without(p => p.SecretBinary)
-                                                .Create();
-            var getSecretValueCallCount = 0;
+                                                       .With(p => p.SecretString)
+                                                       .Without(p => p.SecretBinary)
+                                                       .Create();
 
             mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(() => Interlocked.Increment(ref getSecretValueCallCount) <= 1 ? getSecretValueInitialResponse : getSecretValueUpdatedResponse);
+            mockSecretsManager.SetupSequence(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                              .ReturnsAsync(getSecretValueInitialResponse)
+                              .ReturnsAsync(getSecretValueUpdatedResponse);
 
             using (var sut = CreateSystemUnderTest(new SecretsManagerConfigurationProviderOptions { PollingInterval = TimeSpan.FromMilliseconds(100) }))
             {
-                var changeCallback = new Mock<Action<object>>();
-                var changeCallbackState = new object();
-                sut.GetReloadToken().RegisterChangeCallback(changeCallback.Object, changeCallbackState);
+                sut.GetReloadToken().RegisterChangeCallback(changeCallback, changeCallbackState);
 
                 sut.Load();
                 Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueInitialResponse.SecretString));
 
                 Thread.Sleep(200);
 
-                changeCallback.Verify(c => c(changeCallbackState));
+                Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
                 Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
             }
         }
