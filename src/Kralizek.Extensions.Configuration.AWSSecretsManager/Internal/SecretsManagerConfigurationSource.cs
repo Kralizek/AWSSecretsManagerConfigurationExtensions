@@ -29,11 +29,15 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         private IAmazonSecretsManager CreateClient()
         {
+            if (Options.CreateClient != null)
+            {
+                return Options.CreateClient();
+            }
+
             var clientConfig = new AmazonSecretsManagerConfig
             {
                 RegionEndpoint = Region
             };
-
 
             Options.ConfigureSecretsManagerConfig(clientConfig);
 
@@ -41,7 +45,6 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 return new AmazonSecretsManagerClient(clientConfig);
             }
-
 
             return new AmazonSecretsManagerClient(Credentials, clientConfig);
         }
