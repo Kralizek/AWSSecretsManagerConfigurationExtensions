@@ -21,7 +21,10 @@ namespace SampleWeb
             WebHost.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((hostingContext, config) =>  
                 {
-                    config.AddSecretsManager();
+                    config.AddSecretsManager(configurator: o =>
+                    {
+                        o.PollingInterval = TimeSpan.FromSeconds(10);
+                    });
                 })
                 .UseStartup<Startup>()
                 .Build();
