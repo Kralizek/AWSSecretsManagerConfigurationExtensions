@@ -1,3 +1,4 @@
+using System;
 using Amazon.Runtime;
 using Amazon.SecretsManager;
 using Kralizek.Extensions.Configuration.Internal;
@@ -9,6 +10,12 @@ namespace Tests.Internal
     [TestFixture]
     public class SecretsManagerConfigurationSourceTests
     {
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            Environment.SetEnvironmentVariable("AWS_REGION", "us-east-1", EnvironmentVariableTarget.Process);
+        }
+
         [Test, AutoMoqData]
         public void Build_can_create_a_IConfigurationProvider(IConfigurationBuilder configurationBuilder)
         {
