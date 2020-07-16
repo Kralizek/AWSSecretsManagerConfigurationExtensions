@@ -6,7 +6,7 @@ environment:
   AWS_REGION: us-east-1
   CAKE_SETTINGS_SKIPPACKAGEVERSIONCHECK: "true"
 
-image: Visual Studio 2017
+image: Visual Studio 2019
 
 cache:
   - '%LocalAppData%\NuGet\v3-cache'
