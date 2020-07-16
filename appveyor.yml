@@ -17,7 +17,7 @@ nuget:
   disable_publish_on_pr: true
 
 install:
-  - cmd: dotnet tool install -g Cake.Tool --version 0.33.0
+  - cmd: dotnet tool restore
 
 build_script:
   - cmd: dotnet cake --target=Full
