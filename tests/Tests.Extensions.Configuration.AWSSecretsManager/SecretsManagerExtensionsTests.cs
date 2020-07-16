@@ -9,6 +9,7 @@ using Amazon.Runtime;
 namespace Tests
 {
     [TestFixture]
+    [TestOf(typeof(SecretsManagerExtensions))]
     public class SecretsManagerExtensionsTests
     {
         private Mock<IConfigurationBuilder> configurationBuilder;

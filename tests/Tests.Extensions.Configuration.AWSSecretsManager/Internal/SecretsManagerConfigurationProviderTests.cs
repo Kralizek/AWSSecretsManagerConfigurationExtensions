@@ -1,6 +1,7 @@
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using AutoFixture;
+using AutoFixture.NUnit3;
 using Kralizek.Extensions.Configuration.Internal;
 using Moq;
 using Newtonsoft.Json;
@@ -16,37 +17,11 @@ using Tests.Types;
 namespace Tests.Internal
 {
     [TestFixture]
+    [TestOf(typeof(SecretsManagerConfigurationProvider))]
     public class SecretsManagerConfigurationProviderTests
     {
-        private IFixture fixture;
-        private Mock<IAmazonSecretsManager> mockSecretsManager;
-
-        [SetUp]
-        public void Initialize()
-        {
-            fixture = new Fixture();
-
-            fixture.Customize<MemoryStream>(c =>
-            {
-                return c.FromFactory((string str) =>
-                {
-                    var bytes = Encoding.UTF8.GetBytes(str);
-                    return new MemoryStream(bytes);
-                }).OmitAutoProperties();
-            });
-
-            mockSecretsManager = new Mock<IAmazonSecretsManager>();
-        }
-
-        private SecretsManagerConfigurationProvider CreateSystemUnderTest(SecretsManagerConfigurationProviderOptions options = null)
-        {
-            options = options ?? new SecretsManagerConfigurationProviderOptions();
-
-            return new SecretsManagerConfigurationProvider(mockSecretsManager.Object, options);
-        }
-
         [Test, AutoMoqData]
-        public void Simple_values_in_string_can_be_handled(SecretListEntry testEntry)
+        public void Simple_values_in_string_can_be_handled(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
@@ -58,11 +33,9 @@ namespace Tests.Internal
                                                 .Without(p => p.SecretBinary)
                                                 .Create();
 
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
-
-            var sut = CreateSystemUnderTest();
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
             sut.Load();
 
@@ -70,7 +43,7 @@ namespace Tests.Internal
         }
 
         [Test, AutoMoqData]
-        public void Complex_JSON_objects_in_string_can_be_handled(SecretListEntry testEntry, RootObject test)
+        public void Complex_JSON_objects_in_string_can_be_handled(SecretListEntry testEntry, RootObject test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
@@ -82,11 +55,9 @@ namespace Tests.Internal
                                                 .Without(p => p.SecretBinary)
                                                 .Create();
 
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
-
-            var sut = CreateSystemUnderTest();
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
             sut.Load();
 
@@ -96,7 +67,7 @@ namespace Tests.Internal
         }
 
         [Test, AutoMoqData]
-        public void Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray test)
+        public void Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
@@ -108,11 +79,9 @@ namespace Tests.Internal
                                                 .Without(p => p.SecretBinary)
                                                 .Create();
 
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
-
-            var sut = CreateSystemUnderTest();
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
             sut.Load();
 
@@ -121,7 +90,7 @@ namespace Tests.Internal
         }
 
         [Test, AutoMoqData]
-        public void Array_Of_Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray[] test)
+        public void Array_Of_Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray[] test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                 .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
@@ -133,11 +102,9 @@ namespace Tests.Internal
                 .Without(p => p.SecretBinary)
                 .Create();
 
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
-
-            var sut = CreateSystemUnderTest();
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
             sut.Load();
 
@@ -148,7 +115,7 @@ namespace Tests.Internal
         }
 
         [Test, AutoMoqData]
-        public void Values_in_binary_are_ignored(SecretListEntry testEntry)
+        public void Values_in_binary_are_ignored(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
@@ -160,11 +127,9 @@ namespace Tests.Internal
                                                 .Without(p => p.SecretString)
                                                 .Create();
 
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
-
-            var sut = CreateSystemUnderTest();
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
             sut.Load();
 
@@ -172,31 +137,26 @@ namespace Tests.Internal
         }
 
         [Test, AutoMoqData]
-        public void Secrets_can_be_filtered_out_via_options(SecretListEntry testEntry)
+        public void Secrets_can_be_filtered_out_via_options(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
                                             .With(p => p.NextToken, null)
                                             .Create();
 
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            var options = new SecretsManagerConfigurationProviderOptions
-            {
-                SecretFilter = entry => false
-            };
-
-            var sut = CreateSystemUnderTest(options);
+            options.SecretFilter = entry => false;
 
             sut.Load();
 
-            mockSecretsManager.Verify(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+            Mock.Get(secretsManager).Verify(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()), Times.Never);
 
             Assert.That(sut.Get(testEntry.Name), Is.Null);
         }
 
         [Test, AutoMoqData]
-        public void Keys_can_be_customized_via_options(SecretListEntry testEntry, string newKey)
+        public void Keys_can_be_customized_via_options(SecretListEntry testEntry, string newKey, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
@@ -208,16 +168,11 @@ namespace Tests.Internal
                                                 .Without(p => p.SecretBinary)
                                                 .Create();
 
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
-            var options = new SecretsManagerConfigurationProviderOptions
-            {
-                KeyGenerator = (entry, key) => newKey
-            };
-
-            var sut = CreateSystemUnderTest(options);
+            options.KeyGenerator = (entry, key) => newKey;
 
             sut.Load();
 
@@ -226,7 +181,7 @@ namespace Tests.Internal
         }
         
         [Test, AutoMoqData]
-        public void Should_throw_on_missing_secret_value(SecretListEntry testEntry)
+        public void Should_throw_on_missing_secret_value(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
@@ -234,18 +189,15 @@ namespace Tests.Internal
                                             .Create();
 
            
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).Throws(new ResourceNotFoundException("Oops"));
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).Throws(new ResourceNotFoundException("Oops"));
 
-            var sut = CreateSystemUnderTest();
-
-            Assert.Throws<MissingSecretValueException>(() => sut.Load());
-
+            Assert.That(() => sut.Load(), Throws.TypeOf<MissingSecretValueException>());
         }
 
         [Test, AutoMoqData]
-        public void Should_poll_and_reload_when_secrets_changed(SecretListEntry testEntry, Action<object> changeCallback, object changeCallbackState)
+        public void Should_poll_and_reload_when_secrets_changed(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object> changeCallback, object changeCallbackState)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
                                             .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
@@ -262,24 +214,23 @@ namespace Tests.Internal
                                                        .Without(p => p.SecretBinary)
                                                        .Create();
 
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
 
-            mockSecretsManager.SetupSequence(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+            Mock.Get(secretsManager).SetupSequence(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
                               .ReturnsAsync(getSecretValueInitialResponse)
                               .ReturnsAsync(getSecretValueUpdatedResponse);
 
-            using (var sut = CreateSystemUnderTest(new SecretsManagerConfigurationProviderOptions { PollingInterval = TimeSpan.FromMilliseconds(100) }))
-            {
-                sut.GetReloadToken().RegisterChangeCallback(changeCallback, changeCallbackState);
+            options.PollingInterval = TimeSpan.FromMilliseconds(100);
 
-                sut.Load();
-                Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueInitialResponse.SecretString));
+            sut.GetReloadToken().RegisterChangeCallback(changeCallback, changeCallbackState);
 
-                Thread.Sleep(200);
+            sut.Load();
+            Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueInitialResponse.SecretString));
 
-                Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
-                Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
-            }
+            Thread.Sleep(200);
+
+            Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
+            Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
         }
     }
 }

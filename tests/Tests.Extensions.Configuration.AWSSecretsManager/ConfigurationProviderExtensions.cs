@@ -26,6 +26,7 @@ namespace Tests
     }
 
     [TestFixture]
+    [TestOf(typeof(ConfigurationProviderExtensions))]
     public class ConfigurationProviderExtensionsTests
     {
         [Test, AutoMoqData]

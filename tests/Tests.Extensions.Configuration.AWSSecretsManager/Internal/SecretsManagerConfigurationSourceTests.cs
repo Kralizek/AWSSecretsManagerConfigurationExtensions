@@ -3,11 +3,13 @@ using Amazon.Runtime;
 using Amazon.SecretsManager;
 using Kralizek.Extensions.Configuration.Internal;
 using Microsoft.Extensions.Configuration;
+using Moq;
 using NUnit.Framework;
 
 namespace Tests.Internal
 {
     [TestFixture]
+    [TestOf(typeof(SecretsManagerConfigurationSource))]
     public class SecretsManagerConfigurationSourceTests
     {
         [OneTimeSetUp]
@@ -50,27 +52,31 @@ namespace Tests.Internal
         }
 
         [Test, AutoMoqData]
-        public void Build_invokes_config_client_method(IConfigurationBuilder configurationBuilder)
+        public void Build_invokes_config_client_method(IConfigurationBuilder configurationBuilder, Action<AmazonSecretsManagerConfig> secretsManagerConfiguration)
         {
-            bool configInvoked = false;
-            AmazonSecretsManagerConfig usedConfig = null;
-            var sut = new SecretsManagerConfigurationSource(options: new SecretsManagerConfigurationProviderOptions()
+            var options = new SecretsManagerConfigurationProviderOptions
             {
-                ConfigureSecretsManagerConfig = c =>
-                {
-                    usedConfig = c;
-                    configInvoked = true;
-                }
-            });
-            
+                ConfigureSecretsManagerConfig = secretsManagerConfiguration
+            };
+
+            var sut = new SecretsManagerConfigurationSource(options: options);          
 
             var provider = sut.Build(configurationBuilder);
 
-            Assert.That(configInvoked, Is.True);
-            Assert.That(usedConfig, Is.Not.Null);
-            
+            Mock.Get(secretsManagerConfiguration).Verify(p => p(It.Is<AmazonSecretsManagerConfig>(c => c != null)), Times.Once());
         }
 
+        [Test, AutoMoqData]
+        public void Build_uses_given_client_factory_method(IConfigurationBuilder configurationBuilder, SecretsManagerConfigurationProviderOptions options, Func<IAmazonSecretsManager> clientFactory)
+        {
+            options.CreateClient = clientFactory;
 
+            var sut = new SecretsManagerConfigurationSource(options: options);
+
+            var provider = sut.Build(configurationBuilder);
+
+            Assert.That(provider, Is.Not.Null);
+            Mock.Get(clientFactory).Verify(p => p());
+        }
     }
 }
