@@ -4,6 +4,8 @@ using AutoFixture.NUnit3;
 using AutoFixture;
 using AutoFixture.AutoMoq;
 using Kralizek.Extensions.Configuration.Internal;
+using Amazon.SecretsManager.Model;
+using System.Collections.Generic;
 
 namespace Tests
 {
@@ -30,6 +32,14 @@ namespace Tests
                     return new MemoryStream(bytes);
                 }).OmitAutoProperties();
             });
+
+            fixture.Customize<ListSecretsResponse>(o => o
+                        .With(p => p.SecretList, (SecretListEntry entry) => new List<SecretListEntry> { entry })
+                        .Without(p => p.NextToken));
+
+            fixture.Customize<GetSecretValueResponse>(o => o
+                        .With(p => p.SecretString)
+                        .Without(p => p.SecretBinary));
 
             return fixture;
         }

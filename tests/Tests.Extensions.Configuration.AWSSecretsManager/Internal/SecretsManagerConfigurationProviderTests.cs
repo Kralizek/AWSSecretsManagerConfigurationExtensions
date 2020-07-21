@@ -21,19 +21,9 @@ namespace Tests.Internal
     public class SecretsManagerConfigurationProviderTests
     {
         [Test, CustomAutoData]
-        public void Simple_values_in_string_can_be_handled(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Simple_values_in_string_can_be_handled([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                                            .With(p => p.NextToken, null)
-                                            .Create();
-
-            var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
-                                                .With(p => p.SecretString)
-                                                .Without(p => p.SecretBinary)
-                                                .Create();
-
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
@@ -43,19 +33,14 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Complex_JSON_objects_in_string_can_be_handled(SecretListEntry testEntry, RootObject test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Complex_JSON_objects_in_string_can_be_handled([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, RootObject test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                                            .With(p => p.NextToken, null)
-                                            .Create();
-
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
                                                 .With(p => p.SecretString, JsonConvert.SerializeObject(test))
                                                 .Without(p => p.SecretBinary)
                                                 .Create();
 
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
@@ -67,19 +52,14 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Complex_JSON_objects_with_arrays_can_be_handled([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, RootObjectWithArray test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                                            .With(p => p.NextToken, null)
-                                            .Create();
-
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
                                                 .With(p => p.SecretString, JsonConvert.SerializeObject(test))
                                                 .Without(p => p.SecretBinary)
                                                 .Create();
 
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
@@ -90,19 +70,14 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Array_Of_Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray[] test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Array_Of_Complex_JSON_objects_with_arrays_can_be_handled([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, RootObjectWithArray[] test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                .With(p => p.NextToken, null)
-                .Create();
-
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
-                .With(p => p.SecretString, JsonConvert.SerializeObject(test))
-                .Without(p => p.SecretBinary)
-                .Create();
+                                                .With(p => p.SecretString, JsonConvert.SerializeObject(test))
+                                                .Without(p => p.SecretBinary)
+                                                .Create();
 
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
@@ -115,19 +90,14 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Values_in_binary_are_ignored(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Values_in_binary_are_ignored([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                                            .With(p => p.NextToken, null)
-                                            .Create();
-
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
                                                 .With(p => p.SecretBinary)
                                                 .Without(p => p.SecretString)
                                                 .Create();
 
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
@@ -137,14 +107,9 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Secrets_can_be_filtered_out_via_options(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Secrets_can_be_filtered_out_via_options([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                                            .With(p => p.NextToken, null)
-                                            .Create();
-
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             options.SecretFilter = entry => false;
 
@@ -156,19 +121,9 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Keys_can_be_customized_via_options(SecretListEntry testEntry, string newKey, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Keys_can_be_customized_via_options([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, string newKey, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                                            .With(p => p.NextToken, null)
-                                            .Create();
-
-            var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
-                                                .With(p => p.SecretString)
-                                                .Without(p => p.SecretBinary)
-                                                .Create();
-
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
@@ -182,19 +137,9 @@ namespace Tests.Internal
 
         [Test, CustomAutoData]
         [Description("Reproduces issue 32")]
-        public void Keys_should_be_case_insesitive(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Keys_should_be_case_insesitive([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                                            .With(p => p.NextToken, null)
-                                            .Create();
-
-            var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
-                                                .With(p => p.SecretString)
-                                                .Without(p => p.SecretBinary)
-                                                .Create();
-
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
@@ -205,15 +150,9 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Should_throw_on_missing_secret_value(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Should_throw_on_missing_secret_value([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                                            .With(p => p.NextToken, null)
-                                            .Create();
-
-
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).Throws(new ResourceNotFoundException("Oops"));
 
@@ -221,28 +160,13 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Should_poll_and_reload_when_secrets_changed(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object> changeCallback, object changeCallbackState)
+        public void Should_poll_and_reload_when_secrets_changed([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueInitialResponse, GetSecretValueResponse getSecretValueUpdatedResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object> changeCallback, object changeCallbackState)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                                            .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                                            .With(p => p.NextToken, null)
-                                            .Create();
-
-            var getSecretValueInitialResponse = fixture.Build<GetSecretValueResponse>()
-                                                       .With(p => p.SecretString)
-                                                       .Without(p => p.SecretBinary)
-                                                       .Create();
-
-            var getSecretValueUpdatedResponse = fixture.Build<GetSecretValueResponse>()
-                                                       .With(p => p.SecretString)
-                                                       .Without(p => p.SecretBinary)
-                                                       .Create();
-
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             Mock.Get(secretsManager).SetupSequence(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
-                              .ReturnsAsync(getSecretValueInitialResponse)
-                              .ReturnsAsync(getSecretValueUpdatedResponse);
+                                    .ReturnsAsync(getSecretValueInitialResponse)
+                                    .ReturnsAsync(getSecretValueUpdatedResponse);
 
             options.PollingInterval = TimeSpan.FromMilliseconds(100);
 
