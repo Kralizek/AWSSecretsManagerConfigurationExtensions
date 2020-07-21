@@ -29,7 +29,7 @@ namespace Tests
     [TestOf(typeof(ConfigurationProviderExtensions))]
     public class ConfigurationProviderExtensionsTests
     {
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Added_keys_are_found(ConfigurationProvider provider, string key, string value)
         {
             provider.Set(key, value);
@@ -37,7 +37,7 @@ namespace Tests
             Assert.That(ConfigurationProviderExtensions.HasKey(provider, key), Is.True);
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Added_nested_keys_are_found(ConfigurationProvider provider, string firstKey, string secondKey, string value)
         {
             provider.Set($"{firstKey}{ConfigurationPath.KeyDelimiter}{secondKey}", value);
@@ -45,13 +45,13 @@ namespace Tests
             Assert.That(ConfigurationProviderExtensions.HasKey(provider, firstKey, secondKey), Is.True);
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Non_added_keys_are_not_found(ConfigurationProvider provider, string key)
         {
             Assert.That(ConfigurationProviderExtensions.HasKey(provider, key), Is.False);
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Values_can_be_retrieved(ConfigurationProvider provider, string key, string value)
         {
             provider.Set(key, value);
@@ -59,7 +59,7 @@ namespace Tests
             Assert.That(ConfigurationProviderExtensions.Get(provider, key), Is.EqualTo(value));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Values_of_nested_keys_can_be_retrieved(ConfigurationProvider provider, string firstKey, string secondKey, string value)
         {
             provider.Set($"{firstKey}{ConfigurationPath.KeyDelimiter}{secondKey}", value);
@@ -67,7 +67,7 @@ namespace Tests
             Assert.That(ConfigurationProviderExtensions.Get(provider, firstKey, secondKey), Is.EqualTo(value));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Non_added_keys_return_null(ConfigurationProvider provider, string key)
         {
             Assert.That(ConfigurationProviderExtensions.Get(provider, key), Is.Null);

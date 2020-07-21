@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using AutoFixture.NUnit3;
 using AutoFixture;
@@ -7,15 +7,15 @@ using Kralizek.Extensions.Configuration.Internal;
 
 namespace Tests
 {
-    public class AutoMoqDataAttribute : AutoDataAttribute
+    public class CustomAutoDataAttribute : AutoDataAttribute
     {
-        public AutoMoqDataAttribute() : base(CreateFixture) { }
+        public CustomAutoDataAttribute() : base(CreateFixture) { }
 
         private static IFixture CreateFixture()
         {
             IFixture fixture = new Fixture();
-            
-            fixture.Customize(new AutoMoqCustomization 
+
+            fixture.Customize(new AutoMoqCustomization
             {
                 GenerateDelegates = true
             });

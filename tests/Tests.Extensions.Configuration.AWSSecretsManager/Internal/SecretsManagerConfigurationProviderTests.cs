@@ -20,7 +20,7 @@ namespace Tests.Internal
     [TestOf(typeof(SecretsManagerConfigurationProvider))]
     public class SecretsManagerConfigurationProviderTests
     {
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Simple_values_in_string_can_be_handled(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
@@ -42,7 +42,7 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueResponse.SecretString));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Complex_JSON_objects_in_string_can_be_handled(SecretListEntry testEntry, RootObject test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
@@ -66,7 +66,7 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name, nameof(RootObject.Mid), nameof(MidLevel.Leaf), nameof(Leaf.Property)), Is.EqualTo(test.Mid.Leaf.Property));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
@@ -89,7 +89,7 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name, nameof(RootObjectWithArray.Mids), "0", nameof(MidLevel.Property)), Is.EqualTo(test.Mids[0].Property));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Array_Of_Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray[] test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
@@ -114,7 +114,7 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name, "1", nameof(RootObjectWithArray.Mids), "0", nameof(MidLevel.Property)), Is.EqualTo(test[1].Mids[0].Property));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Values_in_binary_are_ignored(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
@@ -136,7 +136,7 @@ namespace Tests.Internal
             Assert.That(sut.HasKey(testEntry.Name), Is.False);
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Secrets_can_be_filtered_out_via_options(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
@@ -155,7 +155,7 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name), Is.Null);
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Keys_can_be_customized_via_options(SecretListEntry testEntry, string newKey, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
@@ -180,7 +180,7 @@ namespace Tests.Internal
             Assert.That(sut.Get(newKey), Is.EqualTo(getSecretValueResponse.SecretString));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         [Description("Reproduces issue 32")]
         public void Keys_should_be_case_insesitive(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
@@ -204,7 +204,7 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name.ToUpper()), Is.EqualTo(getSecretValueResponse.SecretString));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Should_throw_on_missing_secret_value(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
@@ -220,7 +220,7 @@ namespace Tests.Internal
             Assert.That(() => sut.Load(), Throws.TypeOf<MissingSecretValueException>());
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Should_poll_and_reload_when_secrets_changed(SecretListEntry testEntry, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object> changeCallback, object changeCallbackState)
         {
             var secretListResponse = fixture.Build<ListSecretsResponse>()
