@@ -18,7 +18,7 @@ namespace Tests.Internal
             Environment.SetEnvironmentVariable("AWS_REGION", "us-east-1", EnvironmentVariableTarget.Process);
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Build_can_create_a_IConfigurationProvider(IConfigurationBuilder configurationBuilder)
         {
             var sut = new SecretsManagerConfigurationSource();
@@ -29,7 +29,7 @@ namespace Tests.Internal
             Assert.That(provider, Is.InstanceOf<SecretsManagerConfigurationProvider>());
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Build_can_create_a_IConfigurationProvider_with_credentials(AWSCredentials credentials, IConfigurationBuilder configurationBuilder)
         {
             var sut = new SecretsManagerConfigurationSource(credentials);
@@ -40,7 +40,7 @@ namespace Tests.Internal
             Assert.That(provider, Is.InstanceOf<SecretsManagerConfigurationProvider>());
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Build_can_create_a_IConfigurationProvider_with_options(SecretsManagerConfigurationProviderOptions options, IConfigurationBuilder configurationBuilder)
         {
             var sut = new SecretsManagerConfigurationSource(options: options);
@@ -51,7 +51,7 @@ namespace Tests.Internal
             Assert.That(provider, Is.InstanceOf<SecretsManagerConfigurationProvider>());
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Build_invokes_config_client_method(IConfigurationBuilder configurationBuilder, Action<AmazonSecretsManagerConfig> secretsManagerConfiguration)
         {
             var options = new SecretsManagerConfigurationProviderOptions
@@ -59,14 +59,14 @@ namespace Tests.Internal
                 ConfigureSecretsManagerConfig = secretsManagerConfiguration
             };
 
-            var sut = new SecretsManagerConfigurationSource(options: options);          
+            var sut = new SecretsManagerConfigurationSource(options: options);
 
             var provider = sut.Build(configurationBuilder);
 
             Mock.Get(secretsManagerConfiguration).Verify(p => p(It.Is<AmazonSecretsManagerConfig>(c => c != null)), Times.Once());
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Build_uses_given_client_factory_method(IConfigurationBuilder configurationBuilder, SecretsManagerConfigurationProviderOptions options, Func<IAmazonSecretsManager> clientFactory)
         {
             options.CreateClient = clientFactory;
