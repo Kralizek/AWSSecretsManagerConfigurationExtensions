@@ -27,7 +27,7 @@ jobs:
         run: |
           $branch = git rev-parse --abbrev-ref HEAD
           echo "branch is $branch"
-          $version = "1.4.1.${{github.run_number}}-${{branch}}"
+          $version = "1.4.1.${{github.run_number}}-$branch"
           echo "version is $version"
           dotnet pack -p:Version=$version --include-source --include-symbols --configuration Release ./src/Kralizek.Extensions.Configuration.AWSSecretsManager
 
