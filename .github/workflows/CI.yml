@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+    tags-ignore:
+      - "v*"
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: "3.1.x"
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      - name: Test
+        run: dotnet test --no-restore --verbosity normal
+      - name: Create nuget packages
+        shell: pwsh
+        run: |
+          $branch = git rev-parse --abbrev-ref HEAD
+          echo "branch is $branch"
+          $version = 1.4.1 + ".${{github.run_number}-${{branch}}"
+          echo "version is $version"
+          dotnet pack -p:Version=$version --include-source --include-symbols --configuration Release ./src/Kralizek.Extensions.Configuration.AWSSecretsManager
+
+      - name: Publish nuget packages
+        shell: pwsh
+        run: |
+          dotnet nuget push ".\src\Kralizek.Extensions.Configuration.AWSSecretsManager\bin\Release\*.nupkg" -s https://nuget.pkg.github.com/eduphoria/index.json --api-key ${{ secrets.GITHUB_TOKEN }}
