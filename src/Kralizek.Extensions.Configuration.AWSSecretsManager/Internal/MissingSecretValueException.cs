@@ -6,12 +6,12 @@ namespace Kralizek.Extensions.Configuration.Internal
     {
         public MissingSecretValueException(string errorMessage, string secretName, string secretArn, Exception exception) : base(errorMessage, exception)
         {
-            this.SecretName = secretName;
-            this.SecretArn = secretArn;
+            SecretName = secretName;
+            SecretArn = secretArn;
         }
 
-        public string SecretArn { get; set; }
+        public string SecretArn { get; }
 
-        public string SecretName { get; set; }
+        public string SecretName { get; }
     }
 }

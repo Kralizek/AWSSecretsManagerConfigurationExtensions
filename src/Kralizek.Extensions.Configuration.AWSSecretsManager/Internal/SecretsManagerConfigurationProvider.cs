@@ -16,9 +16,9 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         public IAmazonSecretsManager Client { get; }
 
-        private HashSet<(string, string)> _loadedValues;
-        private Task _pollingTask;
-        private CancellationTokenSource _cancellationToken;
+        private HashSet<(string, string)> _loadedValues = new HashSet<(string, string)>();
+        private Task? _pollingTask;
+        private CancellationTokenSource? _cancellationToken;
 
         public SecretsManagerConfigurationProvider(IAmazonSecretsManager client, SecretsManagerConfigurationProviderOptions options)
         {
@@ -34,7 +34,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         async Task LoadAsync()
         {
-            _loadedValues = await FetchConfigurationAsync(default(CancellationToken)).ConfigureAwait(false);
+            _loadedValues = await FetchConfigurationAsync(default).ConfigureAwait(false);
             SetData(_loadedValues, triggerReload: false);
 
             if (Options.PollingInterval.HasValue)
@@ -81,10 +81,10 @@ namespace Kralizek.Extensions.Configuration.Internal
                 {
                     for (var i = 0; i < array.Count; i++)
                     {
-                        var key = $"{prefix}{ConfigurationPath.KeyDelimiter}{i}";
-                        foreach (var item in ExtractValues(array[i], key))
+                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{i}";
+                        foreach (var (key, value) in ExtractValues(array[i], secretKey))
                         {
-                            yield return (item.key, item.value);
+                            yield return (key, value);
                         }
                     }
 
@@ -94,19 +94,19 @@ namespace Kralizek.Extensions.Configuration.Internal
                 {
                     foreach (var property in jObject.Properties())
                     {
-                        var key = $"{prefix}{ConfigurationPath.KeyDelimiter}{property.Name}";
+                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{property.Name}";
 
                         if (property.Value.HasValues)
                         {
-                            foreach (var item in ExtractValues(property.Value, key))
+                            foreach (var (key, value) in ExtractValues(property.Value, secretKey))
                             {
-                                yield return (item.key, item.value);
+                                yield return (key, value);
                             }
                         }
                         else
                         {
                             var value = property.Value.ToString();
-                            yield return (key, value);
+                            yield return (secretKey, value);
                         }
                     }
 
@@ -168,25 +168,25 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                     var secretString = secretValue.SecretString;
 
-                    if (secretString != null)
+                    if (secretString is null) 
+                        continue;
+                    
+                    if (IsJson(secretString))
                     {
-                        if (IsJson(secretString))
-                        {
-                            var obj = JToken.Parse(secretString);
+                        var obj = JToken.Parse(secretString);
 
-                            var values = ExtractValues(obj, secret.Name);
+                        var values = ExtractValues(obj, secret.Name);
 
-                            foreach (var value in values)
-                            {
-                                var key = Options.KeyGenerator(secret, value.key);
-                                configuration.Add((key, value.value));
-                            }
-                        }
-                        else
+                        foreach (var (key, value) in values)
                         {
-                            var key = Options.KeyGenerator(secret, secret.Name);
-                            configuration.Add((key, secretString));
+                            var configurationKey = Options.KeyGenerator(secret, key);
+                            configuration.Add((configurationKey, value));
                         }
+                    }
+                    else
+                    {
+                        var configurationKey = Options.KeyGenerator(secret, secret.Name);
+                        configuration.Add((configurationKey, secretString));
                     }
                 }
                 catch (ResourceNotFoundException e)
