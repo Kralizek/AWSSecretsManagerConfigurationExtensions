@@ -10,9 +10,9 @@ namespace Microsoft.Extensions.Configuration
     public static class SecretsManagerExtensions
     {
         public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder,
-            AWSCredentials credentials = null,
-            RegionEndpoint region = null,
-            Action<SecretsManagerConfigurationProviderOptions> configurator = null)
+            AWSCredentials? credentials = null,
+            RegionEndpoint? region = null,
+            Action<SecretsManagerConfigurationProviderOptions>? configurator = null)
         {
             var options = new SecretsManagerConfigurationProviderOptions();
 
@@ -20,7 +20,7 @@ namespace Microsoft.Extensions.Configuration
 
             var source = new SecretsManagerConfigurationSource(credentials, options);
 
-            if (region != null)
+            if (region is not null)
             {
                 source.Region = region;
             }
