@@ -137,7 +137,7 @@ namespace Tests.Internal
 
         [Test, CustomAutoData]
         [Description("Reproduces issue 32")]
-        public void Keys_should_be_case_insesitive([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Keys_should_be_case_insensitive([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
@@ -180,5 +180,27 @@ namespace Tests.Internal
             Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
             Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
         }
+        
+        [Test, CustomAutoData]
+        public async Task Should_reload_when_forceReload_called([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueInitialResponse, GetSecretValueResponse getSecretValueUpdatedResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object> changeCallback, object changeCallbackState)
+        {
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+
+            Mock.Get(secretsManager).SetupSequence(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(getSecretValueInitialResponse)
+                .ReturnsAsync(getSecretValueUpdatedResponse);
+
+            sut.GetReloadToken().RegisterChangeCallback(changeCallback, changeCallbackState);
+
+            sut.Load();
+            Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueInitialResponse.SecretString));
+
+
+            await sut.ForceReloadAsync(CancellationToken.None);
+            
+            Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
+            Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
+        }
+        
     }
 }

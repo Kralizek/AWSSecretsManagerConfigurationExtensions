@@ -32,6 +32,11 @@ namespace Kralizek.Extensions.Configuration.Internal
             LoadAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
+        public Task ForceReloadAsync(CancellationToken cancellationToken)
+        {
+            return ReloadAsync(cancellationToken);
+        }
+
         async Task LoadAsync()
         {
             _loadedValues = await FetchConfigurationAsync(default).ConfigureAwait(false);
