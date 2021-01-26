@@ -37,10 +37,14 @@ deploy:
   - provider: Environment
     name: NuGet
     on:
-      branch: master
+      branch:
+        - master
+        - main
       appveyor_repo_tag: true
   - provider: Environment
     name: GitHub Packages - Kralizek
     on:
-      branch: master
+      branch:
+        - master
+        - main
       appveyor_repo_tag: true
