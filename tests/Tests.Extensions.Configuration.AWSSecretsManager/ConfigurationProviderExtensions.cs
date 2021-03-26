@@ -9,12 +9,7 @@ namespace Tests
         {
             var key = ConfigurationPath.Combine(pathSegments);
 
-            if (provider.TryGet(key, out var value))
-            {
-                return value;
-            }
-
-            return null;
+            return provider.TryGet(key, out var value) ? value : null;
         }
 
         public static bool HasKey(this IConfigurationProvider provider, params string[] pathSegments)

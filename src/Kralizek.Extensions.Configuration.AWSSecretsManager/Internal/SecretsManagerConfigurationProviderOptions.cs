@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 
@@ -6,7 +7,9 @@ namespace Kralizek.Extensions.Configuration.Internal
 {
     public class SecretsManagerConfigurationProviderOptions
     {
-        public Func<SecretListEntry, bool> SecretFilter { get; set; } = secret => true;
+        public bool UseDefinedArnList { get; set; } = false;
+        public List<string> DefinedSecretArns { get; set; } = new List<string>();
+        public Func<SecretListEntry, bool> SecretFilter { get; set; } = _ => true;
 
         public Func<SecretListEntry, string, string> KeyGenerator { get; set; } = (secret, key) => key;
 
