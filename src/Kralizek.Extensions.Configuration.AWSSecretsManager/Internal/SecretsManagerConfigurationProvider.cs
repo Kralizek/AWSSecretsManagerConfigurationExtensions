@@ -145,7 +145,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             var result = new List<SecretListEntry>();
 
-            if (Options.UseDefinedArnList)
+            if (Options.DefinedSecretArns.Count > 0)
             {
                 result.AddRange(Options.DefinedSecretArns.Select(x => new SecretListEntry(){ARN = x}));
                 return result;
