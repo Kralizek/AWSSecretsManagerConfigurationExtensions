@@ -129,7 +129,7 @@ namespace Tests.Internal
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => x.SecretId.Equals(firstSecretArn)), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
             
             options.SecretFilter = entry => true;
-            options.DefinedSecretArns = new List<string> {firstSecretArn};
+            options.AcceptedSecretArns = new List<string> {firstSecretArn};
             options.KeyGenerator = (entry, key) => secretKey;
 
             sut.Load();

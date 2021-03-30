@@ -7,7 +7,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 {
     public class SecretsManagerConfigurationProviderOptions
     {
-        public List<string> DefinedSecretArns { get; set; } = new List<string>();
+        public List<string> AcceptedSecretArns { get; set; } = new();
         
         public Func<SecretListEntry, bool> SecretFilter { get; set; } = _ => true;
 
