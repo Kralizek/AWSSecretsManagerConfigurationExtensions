@@ -139,6 +139,23 @@ builder.AddSecretsManager(configurator: options =>
 
 You can see an example [here](/samples/Sample4).
 
+### Defining list of secrets in advance (no list secrets permission required)
+Security best practices sometimes prevent the listing of secrets in a production environment. As a result, a defined list of `ARN` can be provided in lieu of a secrets filter. In this case, the library will only retrieve the secrets whose `ARN` are given. The `.SecretFilter` is ignored.
+
+```csharp
+var acceptedARNs = new[]
+{
+    "MySecretARN1",
+    "MySecretARN2",
+    "MySecretARN3",
+};
+
+builder.AddSecretsManager(configurator: options =>
+{
+    options.AcceptedSecretArns = acceptedARNs;
+});
+```
+
 ### Altering how the values are added to the Configuration
 
 Sometimes we are not in control of the full system. Maybe we are forced to use secrets defined by someone else that uses a different convention.
