@@ -16,7 +16,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         public IAmazonSecretsManager Client { get; }
 
-        private HashSet<(string, string)> _loadedValues = new HashSet<(string, string)>();
+        private HashSet<(string, string)> _loadedValues = new();
         private Task? _pollingTask;
         private CancellationTokenSource? _cancellationToken;
 
@@ -37,7 +37,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             return ReloadAsync(cancellationToken);
         }
 
-        async Task LoadAsync()
+        private async Task LoadAsync()
         {
             _loadedValues = await FetchConfigurationAsync(default).ConfigureAwait(false);
             SetData(_loadedValues, triggerReload: false);
@@ -49,7 +49,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
         }
 
-        async Task PollForChangesAsync(TimeSpan interval, CancellationToken cancellationToken)
+        private async Task PollForChangesAsync(TimeSpan interval, CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -64,7 +64,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
         }
 
-        async Task ReloadAsync(CancellationToken cancellationToken)
+        private async Task ReloadAsync(CancellationToken cancellationToken)
         {
             var oldValues = _loadedValues;
             var newValues = await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false);
@@ -78,7 +78,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         private static bool IsJson(string str) => str.StartsWith("[") || str.StartsWith("{");
 
-        IEnumerable<(string key, string value)> ExtractValues(JToken token, string prefix)
+        private static IEnumerable<(string key, string value)> ExtractValues(JToken token, string prefix)
         {
             switch (token)
             {
@@ -130,7 +130,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
         }
 
-        void SetData(IEnumerable<(string, string)> values, bool triggerReload)
+        private void SetData(IEnumerable<(string, string)> values, bool triggerReload)
         {
             Data = values.ToDictionary(x => x.Item1, x => x.Item2, StringComparer.InvariantCultureIgnoreCase);
             if (triggerReload)
@@ -139,17 +139,23 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
         }
 
-        async Task<IReadOnlyList<SecretListEntry>> FetchAllSecretsAsync(CancellationToken cancellationToken)
+        private async Task<IReadOnlyList<SecretListEntry>> FetchAllSecretsAsync(CancellationToken cancellationToken)
         {
             var response = default(ListSecretsResponse);
 
             var result = new List<SecretListEntry>();
 
+            if (Options.AcceptedSecretArns.Count > 0)
+            {
+                result.AddRange(Options.AcceptedSecretArns.Select(x => new SecretListEntry(){ARN = x}));
+                return result;
+            }
+
             do
             {
                 var nextToken = response?.NextToken;
 
-                var request = new ListSecretsRequest() {NextToken = nextToken};
+                var request = new ListSecretsRequest {NextToken = nextToken};
 
                 response = await Client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
 
@@ -158,8 +164,8 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             return result;
         }
-        
-        async Task<HashSet<(string, string)>> FetchConfigurationAsync(CancellationToken cancellationToken)
+
+        private async Task<HashSet<(string, string)>> FetchConfigurationAsync(CancellationToken cancellationToken)
         {
             var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
             var configuration = new HashSet<(string, string)>();

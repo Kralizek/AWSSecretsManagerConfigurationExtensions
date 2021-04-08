@@ -9,6 +9,7 @@ using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -119,6 +120,26 @@ namespace Tests.Internal
 
             Assert.That(sut.Get(testEntry.Name), Is.Null);
         }
+        
+        [Test, CustomAutoData]
+        public void Secrets_can_be_listed_explicitly_and_not_searched([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            const string secretKey = "KEY";
+            var firstSecretArn = listSecretsResponse.SecretList.Select(x => x.ARN).First();
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => x.SecretId.Equals(firstSecretArn)), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+            
+            options.SecretFilter = entry => true;
+            options.AcceptedSecretArns = new List<string> {firstSecretArn};
+            options.KeyGenerator = (entry, key) => secretKey;
+
+            sut.Load();
+
+            Mock.Get(secretsManager).Verify(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => !x.SecretId.Equals(firstSecretArn)), It.IsAny<CancellationToken>()), Times.Never);
+            Mock.Get(secretsManager).Verify(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+
+            Assert.That(sut.Get(testEntry.Name), Is.Null);
+            Assert.That(sut.Get(secretKey), Is.EqualTo(getSecretValueResponse.SecretString));
+        }
 
         [Test, CustomAutoData]
         public void Keys_can_be_customized_via_options([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, string newKey, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
@@ -156,7 +177,7 @@ namespace Tests.Internal
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).Throws(new ResourceNotFoundException("Oops"));
 
-            Assert.That(() => sut.Load(), Throws.TypeOf<MissingSecretValueException>());
+            Assert.That(sut.Load, Throws.TypeOf<MissingSecretValueException>());
         }
 
         [Test, CustomAutoData]
