@@ -8,9 +8,7 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Tests.Types;
@@ -90,24 +88,17 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name, "1", nameof(RootObjectWithArray.Mids), "0", nameof(MidLevel.Property)), Is.EqualTo(test[1].Mids[0].Property));
         }
 
-        [Test, AutoMoqData]
-        public void Array_Of_Complex_JSON_objects_with_arrays_can_be_handled(SecretListEntry testEntry, RootObjectWithArray[] test)
+        [Test, CustomAutoData]
+        public void Array_Of_Complex_JSON_objects_with_arrays_can_be_handled([Frozen] SecretListEntry testEntry, RootObjectWithArray[] test, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretListResponse = fixture.Build<ListSecretsResponse>()
-                .With(p => p.SecretList, new List<SecretListEntry> { testEntry })
-                .With(p => p.NextToken, null)
-                .Create();
-
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
                 .With(p => p.SecretString, JsonConvert.SerializeObject(test))
                 .Without(p => p.SecretBinary)
                 .Create();
 
-            mockSecretsManager.Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(secretListResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
-            mockSecretsManager.Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
-
-            var sut = CreateSystemUnderTest();
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
             sut.Load();
 
@@ -117,7 +108,7 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name, "1", nameof(RootObjectWithArray.Mids), "0", nameof(MidLevel.Property)), Is.EqualTo(test[1].Mids[0].Property));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Values_in_binary_are_ignored([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
