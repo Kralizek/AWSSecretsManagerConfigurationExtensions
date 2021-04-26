@@ -9,6 +9,7 @@ using Amazon.Runtime;
 namespace Tests
 {
     [TestFixture]
+    [TestOf(typeof(SecretsManagerExtensions))]
     public class SecretsManagerExtensionsTests
     {
         private Mock<IConfigurationBuilder> configurationBuilder;
@@ -29,7 +30,7 @@ namespace Tests
             configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_region(RegionEndpoint region)
         {
             configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
@@ -39,7 +40,7 @@ namespace Tests
             configurationBuilder.Verify(m => m.Add(It.Is<SecretsManagerConfigurationSource>(s => s.Region == region)));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_optionConfigurator(Action<SecretsManagerConfigurationProviderOptions> optionConfigurator)
         {
             configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
@@ -51,7 +52,7 @@ namespace Tests
             Mock.Get(optionConfigurator).Verify(p => p(It.IsAny<SecretsManagerConfigurationProviderOptions>()), Times.Once);
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_credentials(AWSCredentials credentials)
         {
             configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
@@ -61,7 +62,7 @@ namespace Tests
             configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_credentials_and_region(AWSCredentials credentials, RegionEndpoint region)
         {
             configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));

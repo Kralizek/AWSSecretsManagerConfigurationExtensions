@@ -1,5 +1,5 @@
 #tool "nuget:?package=ReportGenerator&version=4.0.5"
-#tool "nuget:?package=JetBrains.dotCover.CommandLineTools&version=2018.3.1"
+#tool "nuget:?package=JetBrains.dotCover.CommandLineTools&version=2020.2.4"
 #tool "nuget:?package=GitVersion.CommandLine&version=4.0.0"
 
 #load "./build/types.cake"
@@ -106,12 +106,7 @@ Task("RunTests")
                     NoRestore = true,
                     Logger = $"trx;LogFileName={testResultFile.FullPath}",
                     Filter = "TestCategory!=External",
-                    Framework = framework,
-                    EnvironmentVariables = new Dictionary<string, string>
-                    {
-                        ["AWS_ACCESS_KEY_ID"] = "for_testing",
-                        ["AWS_SECRET_ACCESS_KEY"] = "for_testing"
-                    }
+                    Framework = framework
                 };
 
                 DotCoverCover(c => c.DotNetCoreTest(projectFile, settings), coverageResultFile, dotCoverSettings);

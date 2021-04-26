@@ -1,15 +1,24 @@
+using System;
 using Amazon.Runtime;
 using Amazon.SecretsManager;
 using Kralizek.Extensions.Configuration.Internal;
 using Microsoft.Extensions.Configuration;
+using Moq;
 using NUnit.Framework;
 
 namespace Tests.Internal
 {
     [TestFixture]
+    [TestOf(typeof(SecretsManagerConfigurationSource))]
     public class SecretsManagerConfigurationSourceTests
     {
-        [Test, AutoMoqData]
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            Environment.SetEnvironmentVariable("AWS_REGION", "us-east-1", EnvironmentVariableTarget.Process);
+        }
+
+        [Test, CustomAutoData]
         public void Build_can_create_a_IConfigurationProvider(IConfigurationBuilder configurationBuilder)
         {
             var sut = new SecretsManagerConfigurationSource();
@@ -20,7 +29,7 @@ namespace Tests.Internal
             Assert.That(provider, Is.InstanceOf<SecretsManagerConfigurationProvider>());
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Build_can_create_a_IConfigurationProvider_with_credentials(AWSCredentials credentials, IConfigurationBuilder configurationBuilder)
         {
             var sut = new SecretsManagerConfigurationSource(credentials);
@@ -31,7 +40,7 @@ namespace Tests.Internal
             Assert.That(provider, Is.InstanceOf<SecretsManagerConfigurationProvider>());
         }
 
-        [Test, AutoMoqData]
+        [Test, CustomAutoData]
         public void Build_can_create_a_IConfigurationProvider_with_options(SecretsManagerConfigurationProviderOptions options, IConfigurationBuilder configurationBuilder)
         {
             var sut = new SecretsManagerConfigurationSource(options: options);
@@ -42,28 +51,32 @@ namespace Tests.Internal
             Assert.That(provider, Is.InstanceOf<SecretsManagerConfigurationProvider>());
         }
 
-        [Test, AutoMoqData]
-        public void Build_invokes_config_client_method(IConfigurationBuilder configurationBuilder)
+        [Test, CustomAutoData]
+        public void Build_invokes_config_client_method(IConfigurationBuilder configurationBuilder, Action<AmazonSecretsManagerConfig> secretsManagerConfiguration)
         {
-            bool configInvoked = false;
-            AmazonSecretsManagerConfig usedConfig = null;
-            var sut = new SecretsManagerConfigurationSource(options: new SecretsManagerConfigurationProviderOptions()
+            var options = new SecretsManagerConfigurationProviderOptions
             {
-                ConfigureSecretsManagerConfig = c =>
-                {
-                    usedConfig = c;
-                    configInvoked = true;
-                }
-            });
-            
+                ConfigureSecretsManagerConfig = secretsManagerConfiguration
+            };
+
+            var sut = new SecretsManagerConfigurationSource(options: options);
 
             var provider = sut.Build(configurationBuilder);
 
-            Assert.That(configInvoked, Is.True);
-            Assert.That(usedConfig, Is.Not.Null);
-            
+            Mock.Get(secretsManagerConfiguration).Verify(p => p(It.Is<AmazonSecretsManagerConfig>(c => c != null)), Times.Once());
         }
 
+        [Test, CustomAutoData]
+        public void Build_uses_given_client_factory_method(IConfigurationBuilder configurationBuilder, SecretsManagerConfigurationProviderOptions options, Func<IAmazonSecretsManager> clientFactory)
+        {
+            options.CreateClient = clientFactory;
 
+            var sut = new SecretsManagerConfigurationSource(options: options);
+
+            var provider = sut.Build(configurationBuilder);
+
+            Assert.That(provider, Is.Not.Null);
+            Mock.Get(clientFactory).Verify(p => p());
+        }
     }
 }

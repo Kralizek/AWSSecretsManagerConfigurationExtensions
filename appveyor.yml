@@ -4,8 +4,9 @@ environment:
   AWS_ACCESS_KEY_ID: for_testing
   AWS_SECRET_ACCESS_KEY: for_testing
   AWS_REGION: us-east-1
+  CAKE_SETTINGS_SKIPPACKAGEVERSIONCHECK: "true"
 
-image: Visual Studio 2017
+image: Visual Studio 2019
 
 cache:
   - '%LocalAppData%\NuGet\v3-cache'
@@ -16,7 +17,7 @@ nuget:
   disable_publish_on_pr: true
 
 install:
-  - cmd: dotnet tool install -g Cake.Tool --version 0.33.0
+  - cmd: dotnet tool restore
 
 build_script:
   - cmd: dotnet cake --target=Full
@@ -36,5 +37,14 @@ deploy:
   - provider: Environment
     name: NuGet
     on:
-      branch: master
+      branch:
+        - master
+        - main
+      appveyor_repo_tag: true
+  - provider: Environment
+    name: GitHub Packages - Kralizek
+    on:
+      branch:
+        - master
+        - main
       appveyor_repo_tag: true
