@@ -160,7 +160,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             if (Options.AcceptedSecretArns.Count > 0)
             {
-                result.AddRange(Options.AcceptedSecretArns.Select(x => new SecretListEntry(){ARN = x}));
+                result.AddRange(Options.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x, Name = x}));
                 return result;
             }
 
