@@ -237,5 +237,21 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
         }
         
+        [Test]
+        [Description("Reproduces issue 48")]
+        [CustomInlineAutoData("{THIS IS NOT AN OBJECT}")]
+        [CustomInlineAutoData("[THIS IS NOT AN ARRAY]")]
+        public void Incorrect_json_should_be_processed_as_string(string content, [Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut)
+        {
+            getSecretValueResponse.SecretString = content;
+
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+
+            sut.Load();
+
+            Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueResponse.SecretString));
+        }
     }
 }

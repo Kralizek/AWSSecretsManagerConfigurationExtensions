@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -76,7 +77,19 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
         }
 
-        private static bool IsJson(string str) => str.StartsWith("[") || str.StartsWith("{");
+        private static bool IsJson(string str)
+        {
+            try
+            {
+                _ = JToken.Parse(str);
+
+                return true;
+            }
+            catch (JsonReaderException)
+            {
+                return false;
+            }
+        }
 
         private static IEnumerable<(string key, string value)> ExtractValues(JToken token, string prefix)
         {
