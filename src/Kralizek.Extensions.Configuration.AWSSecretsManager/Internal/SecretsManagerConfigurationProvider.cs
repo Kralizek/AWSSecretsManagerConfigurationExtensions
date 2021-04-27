@@ -155,7 +155,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 var nextToken = response?.NextToken;
 
-                var request = new ListSecretsRequest {NextToken = nextToken};
+                var request = new ListSecretsRequest() {NextToken = nextToken, Filters = Options.ListSecretsFilters};
 
                 response = await Client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
 

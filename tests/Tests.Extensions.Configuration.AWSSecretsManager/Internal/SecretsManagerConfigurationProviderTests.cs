@@ -142,6 +142,20 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
+        public void Secrets_can_be_filtered_out_via_options_on_fetching([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            options.ListSecretsFilters = new List<Filter> { new Filter { Key = FilterNameStringType.Name, Values = new List<string> { testEntry.Name } } };
+
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.Is<ListSecretsRequest>(request => request.Filters == options.ListSecretsFilters), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+
+            sut.Load();
+
+            Mock.Get(secretsManager).Verify(p => p.ListSecretsAsync(It.Is<ListSecretsRequest>(request => request.Filters == options.ListSecretsFilters), It.IsAny<CancellationToken>()));
+
+            Assert.That(sut.Get(testEntry.Name), Is.Null);
+        }
+
+        [Test, CustomAutoData]
         public void Keys_can_be_customized_via_options([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, string newKey, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
