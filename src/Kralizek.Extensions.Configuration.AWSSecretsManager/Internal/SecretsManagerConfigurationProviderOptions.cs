@@ -11,6 +11,8 @@ namespace Kralizek.Extensions.Configuration.Internal
         
         public Func<SecretListEntry, bool> SecretFilter { get; set; } = _ => true;
 
+        public List<Filter> ListSecretsFilters { get; set; } = new();
+
         public Func<SecretListEntry, string, string> KeyGenerator { get; set; } = (secret, key) => key;
 
         public Action<AmazonSecretsManagerConfig> ConfigureSecretsManagerConfig { get; set; } = _ => { };
