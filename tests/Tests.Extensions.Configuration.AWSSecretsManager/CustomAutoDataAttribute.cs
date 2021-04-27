@@ -5,15 +5,30 @@ using AutoFixture;
 using AutoFixture.AutoMoq;
 using Kralizek.Extensions.Configuration.Internal;
 using Amazon.SecretsManager.Model;
+using System;
 using System.Collections.Generic;
 
 namespace Tests
 {
+    [AttributeUsage(AttributeTargets.Method)]
     public class CustomAutoDataAttribute : AutoDataAttribute
     {
-        public CustomAutoDataAttribute() : base(CreateFixture) { }
+        public CustomAutoDataAttribute() : base(FixtureHelpers.CreateFixture)
+        {
+        }
+    }
 
-        private static IFixture CreateFixture()
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+    public class CustomInlineAutoDataAttribute : InlineAutoDataAttribute
+    {
+        public CustomInlineAutoDataAttribute(params object[] args) : base(FixtureHelpers.CreateFixture, args)
+        {
+        }
+    }
+
+    public static class FixtureHelpers
+    {
+        public static IFixture CreateFixture()
         {
             IFixture fixture = new Fixture();
 
