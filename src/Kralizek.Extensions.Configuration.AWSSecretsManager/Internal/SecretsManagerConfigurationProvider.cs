@@ -191,7 +191,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                     var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN }, cancellationToken).ConfigureAwait(false);
 
-                    var secretName = secret.Name ?? secretValue.Name;
+                    var secretName = secretValue.Name;
                     var secretString = secretValue.SecretString;
 
                     if (secretString is null) 
