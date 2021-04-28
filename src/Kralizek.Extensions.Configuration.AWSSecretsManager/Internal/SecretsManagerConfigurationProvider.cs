@@ -81,6 +81,11 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             jToken = null;
 
+            if (data[0] != '[' && data[0] != '{')
+            {
+                return false;
+            }
+
             try
             {
                 jToken = JToken.Parse(data);
