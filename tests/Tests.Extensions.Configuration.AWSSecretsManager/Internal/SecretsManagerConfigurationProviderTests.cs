@@ -8,9 +8,7 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Tests.Types;
@@ -139,6 +137,23 @@ namespace Tests.Internal
 
             Assert.That(sut.Get(testEntry.Name), Is.Null);
             Assert.That(sut.Get(secretKey), Is.EqualTo(getSecretValueResponse.SecretString));
+        }
+
+        [Test, CustomAutoData]
+        public void Secrets_listed_explicitly_and_saved_to_configuration_with_their_names_as_keys([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            var firstSecretArn = listSecretsResponse.SecretList.First().ARN;
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => x.SecretId.Equals(firstSecretArn)), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+
+            options.AcceptedSecretArns = new List<string> { firstSecretArn };
+
+            sut.Load();
+
+            Mock.Get(secretsManager).Verify(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => !x.SecretId.Equals(firstSecretArn)), It.IsAny<CancellationToken>()), Times.Never);
+            Mock.Get(secretsManager).Verify(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+
+            Assert.That(sut.Get(testEntry.Name), Is.Null);
+            Assert.That(sut.Get(getSecretValueResponse.Name), Is.EqualTo(getSecretValueResponse.SecretString));
         }
 
         [Test, CustomAutoData]

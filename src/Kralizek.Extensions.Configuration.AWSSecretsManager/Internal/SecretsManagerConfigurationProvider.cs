@@ -77,11 +77,13 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
         }
 
-        private static bool IsJson(string str)
+        private static bool TryParseJson(string data, out JToken? jToken)
         {
+            jToken = null;
+
             try
             {
-                _ = JToken.Parse(str);
+                jToken = JToken.Parse(data);
 
                 return true;
             }
@@ -156,19 +158,18 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             var response = default(ListSecretsResponse);
 
-            var result = new List<SecretListEntry>();
-
             if (Options.AcceptedSecretArns.Count > 0)
             {
-                result.AddRange(Options.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x, Name = x}));
-                return result;
+                return Options.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x}).ToList();
             }
+
+            var result = new List<SecretListEntry>();
 
             do
             {
                 var nextToken = response?.NextToken;
 
-                var request = new ListSecretsRequest() {NextToken = nextToken, Filters = Options.ListSecretsFilters};
+                var request = new ListSecretsRequest {NextToken = nextToken, Filters = Options.ListSecretsFilters};
 
                 response = await Client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
 
@@ -190,16 +191,16 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                     var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN }, cancellationToken).ConfigureAwait(false);
 
+                    var secretName = secret.Name ?? secretValue.Name;
                     var secretString = secretValue.SecretString;
 
                     if (secretString is null) 
                         continue;
                     
-                    if (IsJson(secretString))
+                    if (TryParseJson(secretString, out var jToken))
                     {
-                        var obj = JToken.Parse(secretString);
-
-                        var values = ExtractValues(obj, secret.Name);
+                        // [MaybeNullWhen(false)] attribute is available in .net standard since version 2.1
+                        var values = ExtractValues(jToken, secretName);
 
                         foreach (var (key, value) in values)
                         {
@@ -209,7 +210,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                     }
                     else
                     {
-                        var configurationKey = Options.KeyGenerator(secret, secret.Name);
+                        var configurationKey = Options.KeyGenerator(secret, secretName);
                         configuration.Add((configurationKey, secretString));
                     }
                 }
