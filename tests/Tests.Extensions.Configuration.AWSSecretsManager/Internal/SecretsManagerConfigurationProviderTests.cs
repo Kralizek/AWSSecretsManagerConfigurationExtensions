@@ -140,7 +140,7 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Secrets_listed_explicitly_and_saved_to_configuration_with_their_names_as_keys([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        public void Secrets_listed_explicitly_and_saved_to_configuration_with_their_arns_as_keys([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => x.SecretId.Equals(getSecretValueResponse.ARN)), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
@@ -150,7 +150,7 @@ namespace Tests.Internal
 
             Mock.Get(secretsManager).Verify(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => !x.SecretId.Equals(getSecretValueResponse.ARN)), It.IsAny<CancellationToken>()), Times.Never);
             
-            Assert.That(sut.Get(getSecretValueResponse.Name), Is.EqualTo(getSecretValueResponse.SecretString));
+            Assert.That(sut.Get(getSecretValueResponse.ARN), Is.EqualTo(getSecretValueResponse.SecretString));
         }
 
         [Test, CustomAutoData]

@@ -168,7 +168,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             if (Options.AcceptedSecretArns.Count > 0)
             {
-                return Options.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x}).ToList();
+                return Options.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x, Name = x}).ToList();
             }
 
             var result = new List<SecretListEntry>();
@@ -199,7 +199,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                     var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN }, cancellationToken).ConfigureAwait(false);
 
-                    var secretName = secret.Name ?? secretValue.Name;
+                    var secretName = secret.Name;
                     var secretString = secretValue.SecretString;
 
                     if (secretString is null) 
