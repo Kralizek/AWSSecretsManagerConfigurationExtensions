@@ -81,14 +81,17 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             jToken = null;
 
-            if (data[0] != '[' && data[0] != '{')
+            var trimmedData = data.Trim();
+            var firstChar = trimmedData.FirstOrDefault();
+
+            if (firstChar != '[' && firstChar != '{')
             {
                 return false;
             }
 
             try
             {
-                jToken = JToken.Parse(data);
+                jToken = JToken.Parse(trimmedData);
 
                 return true;
             }
