@@ -8,9 +8,7 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Tests.Types;
@@ -142,6 +140,20 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
+        public void Secrets_listed_explicitly_and_saved_to_configuration_with_their_arns_as_keys([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => x.SecretId.Equals(getSecretValueResponse.ARN)), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+
+            options.AcceptedSecretArns = new List<string> { getSecretValueResponse.ARN };
+
+            Assert.DoesNotThrow(sut.Load);
+
+            Mock.Get(secretsManager).Verify(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => !x.SecretId.Equals(getSecretValueResponse.ARN)), It.IsAny<CancellationToken>()), Times.Never);
+            
+            Assert.That(sut.Get(getSecretValueResponse.ARN), Is.EqualTo(getSecretValueResponse.SecretString));
+        }
+
+        [Test, CustomAutoData]
         public void Secrets_can_be_filtered_out_via_options_on_fetching([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             options.ListSecretsFilters = new List<Filter> { new Filter { Key = FilterNameStringType.Name, Values = new List<string> { testEntry.Name } } };
@@ -252,6 +264,27 @@ namespace Tests.Internal
             sut.Load();
 
             Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueResponse.SecretString));
+        }
+
+        [Test, CustomAutoData]
+        public void JSON_with_leading_spaces_should_be_processed_as_JSON([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, RootObject test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            var secretString = " " + JsonConvert.SerializeObject(test);
+
+            var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
+                .With(p => p.SecretString, secretString)
+                .Without(p => p.SecretBinary)
+                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+
+            sut.Load();
+
+            Assert.That(sut.Get(testEntry.Name, nameof(RootObject.Property)), Is.EqualTo(test.Property));
+            Assert.That(sut.Get(testEntry.Name, nameof(RootObject.Mid), nameof(MidLevel.Property)), Is.EqualTo(test.Mid.Property));
+            Assert.That(sut.Get(testEntry.Name, nameof(RootObject.Mid), nameof(MidLevel.Leaf), nameof(Leaf.Property)), Is.EqualTo(test.Mid.Leaf.Property));
         }
     }
 }
