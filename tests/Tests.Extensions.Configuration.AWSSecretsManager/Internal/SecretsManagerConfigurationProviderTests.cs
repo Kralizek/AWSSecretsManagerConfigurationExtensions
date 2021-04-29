@@ -265,5 +265,26 @@ namespace Tests.Internal
 
             Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueResponse.SecretString));
         }
+
+        [Test, CustomAutoData]
+        public void JSON_with_leading_spaces_should_be_processed_as_JSON([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, RootObject test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            var secretString = " " + JsonConvert.SerializeObject(test);
+
+            var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
+                .With(p => p.SecretString, secretString)
+                .Without(p => p.SecretBinary)
+                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+
+            sut.Load();
+
+            Assert.That(sut.Get(testEntry.Name, nameof(RootObject.Property)), Is.EqualTo(test.Property));
+            Assert.That(sut.Get(testEntry.Name, nameof(RootObject.Mid), nameof(MidLevel.Property)), Is.EqualTo(test.Mid.Property));
+            Assert.That(sut.Get(testEntry.Name, nameof(RootObject.Mid), nameof(MidLevel.Leaf), nameof(Leaf.Property)), Is.EqualTo(test.Mid.Leaf.Property));
+        }
     }
 }
