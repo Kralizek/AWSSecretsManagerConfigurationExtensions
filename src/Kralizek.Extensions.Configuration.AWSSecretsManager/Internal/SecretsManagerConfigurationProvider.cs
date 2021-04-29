@@ -91,7 +91,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             try
             {
-                jToken = JToken.Parse(trimmedData);
+                jToken = JToken.Parse(data);
 
                 return true;
             }
