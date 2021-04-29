@@ -81,7 +81,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             jToken = null;
 
-            var trimmedData = data.Trim();
+            var trimmedData = data.TrimStart();
             var firstChar = trimmedData.FirstOrDefault();
 
             if (firstChar != '[' && firstChar != '{')
