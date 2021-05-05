@@ -199,7 +199,16 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                     var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN }, cancellationToken).ConfigureAwait(false);
 
-                    var secretName = secret.Name;
+                    var secretEntry = Options.AcceptedSecretArns.Count > 0
+                        ? new SecretListEntry
+                        {
+                            ARN = secret.ARN,
+                            Name = secretValue.Name,
+                            CreatedDate = secretValue.CreatedDate
+                        }
+                        : secret;
+
+                    var secretName = secretEntry.Name;
                     var secretString = secretValue.SecretString;
 
                     if (secretString is null) 
@@ -212,13 +221,13 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                         foreach (var (key, value) in values)
                         {
-                            var configurationKey = Options.KeyGenerator(secret, key);
+                            var configurationKey = Options.KeyGenerator(secretEntry, key);
                             configuration.Add((configurationKey, value));
                         }
                     }
                     else
                     {
-                        var configurationKey = Options.KeyGenerator(secret, secretName);
+                        var configurationKey = Options.KeyGenerator(secretEntry, secretName);
                         configuration.Add((configurationKey, secretString));
                     }
                 }
