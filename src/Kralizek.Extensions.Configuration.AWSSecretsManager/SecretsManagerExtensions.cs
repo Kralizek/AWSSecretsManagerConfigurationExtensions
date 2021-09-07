@@ -18,12 +18,7 @@ namespace Microsoft.Extensions.Configuration
 
             configurator?.Invoke(options);
 
-            var source = new SecretsManagerConfigurationSource(credentials, options);
-
-            if (region is not null)
-            {
-                source.Region = region;
-            }
+            var source = new SecretsManagerConfigurationSource(credentials, options, region);
 
             configurationBuilder.Add(source);
 
