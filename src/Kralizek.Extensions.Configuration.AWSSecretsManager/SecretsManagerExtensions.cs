@@ -1,6 +1,5 @@
 using System;
 using Amazon;
-using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 using Kralizek.Extensions.Configuration.Internal;
@@ -35,14 +34,9 @@ namespace Microsoft.Extensions.Configuration
             ref RegionEndpoint? region, 
             ref AWSCredentials? credentials)
         {
-            if (!options.ReadFromConfig) return;
-            
             var config = configurationBuilder.Build();
                 
-            var awsOptions = config.GetAWSOptions();
-
-            if (awsOptions == null) return;
-            
+            var awsConfig = config.GetSection("AWS").Get<AwsConfigSection>();
             var smConfig = config.GetSection(options.ConfigSectionName).Get<SecretsManagerConfigurationSection>();
             
             if (smConfig.ListSecretsFilters != null) options.ListSecretsFilters?.AddRange(smConfig.ListSecretsFilters);
@@ -52,21 +46,26 @@ namespace Microsoft.Extensions.Configuration
                 ? TimeSpan.FromSeconds(smConfig.PollingIntervalInSeconds.Value)
                 : null;
 
-            credentials ??= GetCredentials(awsOptions);
+            var profile = smConfig?.Profile ?? awsConfig?.Profile;
+            var profilesLocation = smConfig?.ProfilesLocation ?? awsConfig?.ProfilesLocation;
+            
+            credentials ??= GetCredentials(profile, profilesLocation);
                     
-            region ??= smConfig?.Region != null
-                ? RegionEndpoint.GetBySystemName(smConfig.Region)
-                : awsOptions?.Region;
+            var configRegionName = smConfig?.Region ?? awsConfig?.Region;
+            
+            region ??= configRegionName != null
+                ? RegionEndpoint.GetBySystemName(configRegionName)
+                : null;
         }
 
-        private static AWSCredentials GetCredentials(AWSOptions awsOptions)
+        private static AWSCredentials GetCredentials(string profile, string profilesLocation)
         {
-            if (awsOptions.Profile == null)
+            if (profile == null)
                 return FallbackCredentialsFactory.GetCredentials();
 
-            var chain = new CredentialProfileStoreChain(awsOptions.ProfilesLocation);
+            var chain = new CredentialProfileStoreChain(profilesLocation);
 
-            chain.TryGetAWSCredentials(awsOptions.Profile, out var credentials);
+            chain.TryGetAWSCredentials(profile, out var credentials);
             
             return credentials ?? FallbackCredentialsFactory.GetCredentials();
         }

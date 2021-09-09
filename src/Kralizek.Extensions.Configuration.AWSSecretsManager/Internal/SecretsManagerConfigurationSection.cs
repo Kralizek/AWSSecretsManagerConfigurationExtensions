@@ -10,10 +10,21 @@ namespace Kralizek.Extensions.Configuration.Internal
     internal class SecretsManagerConfigurationSection
     {
         public const string DefaultConfigSectionName = "SecretsManager";
+        
         /// <summary>
         /// The string representation of an AWS Region.
         /// </summary>
         public string? Region { get; set; }
+        
+        /// <summary>
+        /// The name of the credentials profile to be used by the Secrets Manager client.
+        /// </summary>
+        public string? Profile { get; set; }
+        
+        /// <summary>
+        /// The location of the file containing the credentials profiles.
+        /// </summary>
+        public string? ProfilesLocation { get; set; }
         
         /// <summary>
         /// The duration in sections that should be waited before refreshing the secrets.
