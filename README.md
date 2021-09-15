@@ -189,6 +189,76 @@ builder.AddSecretsManager(configurator: options =>
 
 ```
 
+## Configuration via appsettings.json
+Many options can be specified in a JSON file rather than hardcoded within the app. To do so, 
+the `ReadFromConfigSection` method should be called, like so:
+
+```csharp
+builder.AddSecretsManager(configurator: options => 
+{
+    options.ReadFromConfigSection();
+});
+```
+
+By default, this library will assume your options are in a config section named `SecretsManager`, 
+however you can override this behaviour by specifying the name of your config section when calling the method, 
+e.g. `options.ReadFromConfigSection("MySecretsManagerConfig");`
+
+### Example appsettings config section
+The following shows all the options that can be configured via appsettings. Note that each property within this section is optional. 
+```json
+{
+    "SecretsManager": {
+        "Profile": "MySecretsProfile",
+        "Region": "eu-west-1",
+        "ProfilesLocation": "C:\\Users\\MyUser\\.aws\\",
+        "PollingIntervalInSeconds": 60,
+        "AcceptedSecretArns": [
+          "arn:example:01-abcxyz",
+          "arn:example:02",
+          "unique-secret-name"
+        ],
+        "ListSecretsFilters": [
+          {
+            "Key": "Name",
+            "Values": [ "Value1", "Value2" ]
+          }
+        ]
+      }
+}
+```
+
+### Mixing hardcoded and appsettings configuration
+It's possible to configure this library to use options both from code and from a configuration source such as appsettings. 
+To do so, call the `ReadFromConfigSection` method as above, and also specify the configuration that you want to use in code. 
+For example:
+
+```csharp
+builder.AddSecretsManager(configurator: options => 
+{
+    options.ReadFromConfigSection();
+    options.KeyGenerator = (entry, key) => key.ToUpper();
+    options.AcceptedSecretArns = new[]
+    {
+        "MySecretARN1",
+    }
+});
+
+```
+
+Note that if `AcceptedSecretArns` is specified both in code-based and json-based configuration, the collections will be combined
+and both will be used. The same applies for the `ListSecretsFilters` collection. For all other properties, the code-based configuration 
+will take precedence.
+
+### Falling back on AWS config section
+It's common for C# applications that interact with AWS to use a config section called `AWS`, that specifies various options 
+such as the credentials profile that should be used, the location of the credentials profile file, and the region to use.
+If this library has been configured to `ReadFromConfigSection`, it will also check for the `AWS` config section, 
+and will fall back on the `Profile`, `Region` and `ProfilesLocation` specified in the `AWS` section if they are 
+not present in the `SecretsManager` section.
+
+You can find an example application that demonstrates how to use json based configuration [here](/samples/Sample).
+
 ## Versioning
 
 This library follows [Semantic Versioning 2.0.0](http://semver.org/spec/v2.0.0.html) for the public releases (published to the [nuget.org](https://www.nuget.org/)).
@@ -197,7 +267,7 @@ This library follows [Semantic Versioning 2.0.0](http://semver.org/spec/v2.0.0.h
 
 This project uses [Cake](https://cakebuild.net/) as a build engine.
 
-If you would like to build this project locally, just execute the `build.cake` script.
+If you would like to build this project locally, just exe7ute the `build.cake` script.
 
 You can do it by using the .NET tool created by CAKE authors and use it to execute the build script.
 ```powershell
