@@ -1,10 +1,13 @@
 using System;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using Amazon;
 using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 using Kralizek.Extensions.Configuration.Internal;
 // ReSharper disable CheckNamespace
 
+[assembly: InternalsVisibleTo("Tests.Extensions.Configuration.AWSSecretsManager")]
 namespace Microsoft.Extensions.Configuration
 {
     public static class SecretsManagerExtensions
@@ -36,13 +39,16 @@ namespace Microsoft.Extensions.Configuration
         {
             var config = configurationBuilder.Build();
                 
-            var awsConfig = config.GetSection("AWS").Get<AwsConfigSection>();
-            var smConfig = config.GetSection(options.ConfigSectionName).Get<SecretsManagerConfigurationSection>();
+            var awsConfig = config.GetSection("AWS")?.Get<AwsConfigSection>();
+            var smConfig = config.GetSection(options.ConfigSectionName)?.Get<SecretsManagerConfigurationSection>();
             
-            if (smConfig.ListSecretsFilters != null) options.ListSecretsFilters?.AddRange(smConfig.ListSecretsFilters);
-            if (smConfig.AcceptedSecretArns != null) options.AcceptedSecretArns?.AddRange(smConfig.AcceptedSecretArns);
+            if (smConfig?.ListSecretsFilters != null)
+                options.ListSecretsFilters?.AddRange(smConfig.ListSecretsFilters.Select(f => f.ToAwsFilter()));
+
+            if (smConfig?.AcceptedSecretArns != null)
+                options.AcceptedSecretArns?.AddRange(smConfig.AcceptedSecretArns);
             
-            options.PollingInterval ??= smConfig.PollingIntervalInSeconds.HasValue
+            options.PollingInterval ??= smConfig?.PollingIntervalInSeconds != null
                 ? TimeSpan.FromSeconds(smConfig.PollingIntervalInSeconds.Value)
                 : null;
 
@@ -58,7 +64,7 @@ namespace Microsoft.Extensions.Configuration
                 : null;
         }
 
-        private static AWSCredentials GetCredentials(string profile, string profilesLocation)
+        private static AWSCredentials GetCredentials(string? profile, string? profilesLocation)
         {
             if (profile == null)
                 return FallbackCredentialsFactory.GetCredentials();
