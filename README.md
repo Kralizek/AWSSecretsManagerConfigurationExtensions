@@ -69,7 +69,9 @@ Amazon introduced [IAM roles for service accounts](https://docs.aws.amazon.com/e
 
 However, this feature requires an additional package to be installed which is loaded by reflection.
 
-    dotnet add AWSSDK.SecurityToken
+```powershell
+dotnet add AWSSDK.SecurityToken
+```
 
 ## Customization
 
