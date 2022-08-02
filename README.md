@@ -62,6 +62,17 @@ This code is also available in [this sample](/samples/Sample1).
 * [Useful tools to manage your application's secrets](https://raygun.com/blog/manage-application-secrets/) by Jerrie Pelser
 * [Storing secrets CORRECTLY in .NET using AWS Secrets Manager](https://www.youtube.com/watch?v=BGW4FnEB-CM) by [Nick Chapsas](https://github.com/Elfocrash)
 
+## Amazon Elastic Kubernetes Service (EKS)
+
+In order to authenticate requests to AWS Secret Manager a pod needs to use a IAM role that grants access to your secrets.
+Amazon introduced [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) to make this possible without third party solutions.
+
+However, this feature requires an additional package to be installed which is loaded by reflection.
+
+```powershell
+dotnet add AWSSDK.SecurityToken
+```
+
 ## Customization
 
 This library offers the possibility to customize how the setting values are retrieved from AWS Secrets Manager and added to the Configuration provider.
