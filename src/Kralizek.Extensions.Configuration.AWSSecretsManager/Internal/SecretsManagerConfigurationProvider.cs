@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+
 
 namespace Kralizek.Extensions.Configuration.Internal
 {
@@ -77,9 +77,9 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
         }
 
-        private static bool TryParseJson(string data, out JToken? jToken)
+        private static bool TryParseJson(string data, out JsonElement? jsonElement)
         {
-            jToken = null;
+            jsonElement = null;
 
             data = data.TrimStart();
             var firstChar = data.FirstOrDefault();
@@ -91,61 +91,79 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             try
             {
-                jToken = JToken.Parse(data);
-
+                using var jsonDocument = JsonDocument.Parse(data);
+                //  https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-use-dom-utf8jsonreader-utf8jsonwriter?pivots=dotnet-6-0#jsondocument-is-idisposable
+                //  Its recommended to return the clone of the root element as the json document will be disposed
+                jsonElement = jsonDocument.RootElement.Clone();
                 return true;
             }
-            catch (JsonReaderException)
+            catch (JsonException)
             {
                 return false;
             }
         }
 
-        private static IEnumerable<(string key, string value)> ExtractValues(JToken token, string prefix)
+        private static IEnumerable<(string key, string value)> ExtractValues(JsonElement? jsonElement, string prefix)
         {
-            switch (token)
+            if (jsonElement == null)
             {
-                case JArray array:
+                yield break;
+            }
+            var element = jsonElement.Value;
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Array:
                 {
-                    for (var i = 0; i < array.Count; i++)
+                    var currentIndex = 0;
+                    foreach (var el in element.EnumerateArray())
                     {
-                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{i}";
-                        foreach (var (key, value) in ExtractValues(array[i], secretKey))
+                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{currentIndex}";
+                        foreach (var (key, value) in ExtractValues(el, secretKey))
+                        {
+                            yield return (key, value);
+                        }
+                        currentIndex++;
+                    }
+                    break;
+                }
+                case JsonValueKind.Number:
+                {
+                    var value = element.GetRawText();
+                    yield return (prefix, value);
+                    break;
+                }
+                case JsonValueKind.String:
+                {
+                    var value = element.GetString() ?? "";
+                    yield return (prefix, value);
+                    break;
+                }
+                case JsonValueKind.True:
+                {
+                    var value = element.GetBoolean();
+                    yield return (prefix, value.ToString());
+                    break;
+                }
+                case JsonValueKind.False:
+                {
+                    var value = element.GetBoolean();
+                    yield return (prefix, value.ToString());
+                    break;
+                }
+                case JsonValueKind.Object:
+                {
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{property.Name}";
+                        foreach (var (key, value) in ExtractValues(property.Value, secretKey))
                         {
                             yield return (key, value);
                         }
                     }
-
                     break;
                 }
-                case JObject jObject:
-                {
-                    foreach (var property in jObject.Properties())
-                    {
-                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{property.Name}";
-
-                        if (property.Value.HasValues)
-                        {
-                            foreach (var (key, value) in ExtractValues(property.Value, secretKey))
-                            {
-                                yield return (key, value);
-                            }
-                        }
-                        else
-                        {
-                            var value = property.Value.ToString();
-                            yield return (secretKey, value);
-                        }
-                    }
-
-                    break;
-                }
-                case JValue jValue:
-                {
-                    var value = jValue.Value.ToString();
-                    yield return (prefix, value);
-                    break;
-                }
+                case JsonValueKind.Undefined:
+                case JsonValueKind.Null:
                 default:
                 {
                     throw new FormatException("unsupported json token");
@@ -213,13 +231,13 @@ namespace Kralizek.Extensions.Configuration.Internal
                     var secretName = secretEntry.Name;
                     var secretString = secretValue.SecretString;
 
-                    if (secretString is null) 
+                    if (secretString is null)
                         continue;
-                    
-                    if (TryParseJson(secretString, out var jToken) && jToken is not null)
+
+                    if (TryParseJson(secretString, out var jElement))
                     {
                         // [MaybeNullWhen(false)] attribute is available in .net standard since version 2.1
-                        var values = ExtractValues(jToken, secretName);
+                        var values = ExtractValues(jElement!, secretName);
 
                         foreach (var (key, value) in values)
                         {
