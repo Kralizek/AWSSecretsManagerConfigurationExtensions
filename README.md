@@ -55,10 +55,23 @@ This code is also available in [this sample](/samples/Sample1).
 
 **Note**: the snippets above assume that some [AWS credentials are available by default](https://aws.amazon.com/blogs/security/a-new-and-standardized-way-to-manage-credentials-in-the-aws-sdks/) to your application. [Here](https://docs.aws.amazon.com/sdk-for-net/v3/developer-guide/net-dg-config-creds.html) you can see how to setup your environment.
 
-## Community posts
+## Community contributions
+
 * [Secure secrets storage for ASP.NET Core with AWS Secrets Manager (Part 1)](https://andrewlock.net/secure-secrets-storage-for-asp-net-core-with-aws-secrets-manager-part-1/) by Andrew Lock
 * [Secure secrets storage for ASP.NET Core with AWS Secrets Manager (Part 2)](https://andrewlock.net/secure-secrets-storage-for-asp-net-core-with-aws-secrets-manager-part-2/) by Andrew Lock
 * [Useful tools to manage your application's secrets](https://raygun.com/blog/manage-application-secrets/) by Jerrie Pelser
+* [Storing secrets CORRECTLY in .NET using AWS Secrets Manager](https://www.youtube.com/watch?v=BGW4FnEB-CM) by [Nick Chapsas](https://github.com/Elfocrash)
+
+## Amazon Elastic Kubernetes Service (EKS)
+
+In order to authenticate requests to AWS Secret Manager a pod needs to use a IAM role that grants access to your secrets.
+Amazon introduced [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) to make this possible without third party solutions.
+
+However, this feature requires an additional package to be installed which is loaded by reflection.
+
+```powershell
+dotnet add AWSSDK.SecurityToken
+```
 
 ## Customization
 
@@ -75,6 +88,7 @@ Here are some samples.
 You can provide your AWS access and secret key directly by using the `BasicAWSCredentials` class.
 
 **Note** You should avoid this. After all, the intent of this library is to remove our secrets from the source code.
+
 ```csharp
 var credentials = new BasicAWSCredentials("my-accessKey", "my-secretKey");
 builder.AddSecretsManager(credentials: credentials);
@@ -85,6 +99,7 @@ builder.AddSecretsManager(credentials: credentials);
 You can use a specific profile by using the `StoredProfileAWSCredentials` class.
 
 **Note** The `StoredProfileAWSCredentials` has been marked as obsolete and will be removed in a later release.
+
 ```csharp
 var credentials = new StoredProfileAWSCredentials("my_profile_name");
 builder.AddSecretsManager(credentials: credentials);
@@ -140,14 +155,17 @@ builder.AddSecretsManager(configurator: options =>
 You can see an example [here](/samples/Sample4).
 
 ### Defining list of secrets in advance (no list secrets permission required)
-Security best practices sometimes prevent the listing of secrets in a production environment. As a result, a defined list of `ARN` can be provided in lieu of a secrets filter. In this case, the library will only retrieve the secrets whose `ARN` are given. The `.SecretFilter` is ignored.
+
+Security best practices sometimes prevent the listing of secrets in a production environment.
+As a result, it is possible to define a list of secrets in lieu of a secret filter. When using this this approach,
+the library will only retrieve the secrets whose `ARN` or name are present in the given `AcceptedSecretArns` list.  
 
 ```csharp
 var acceptedARNs = new[]
 {
-    "MySecretARN1",
-    "MySecretARN2",
-    "MySecretARN3",
+    "MySecretFullARN-abcxyz",
+    "MySecretPartialARN",
+    "MySecretUniqueName",
 };
 
 builder.AddSecretsManager(configurator: options =>
@@ -270,6 +288,7 @@ This project uses [Cake](https://cakebuild.net/) as a build engine.
 If you would like to build this project locally, just exe7ute the `build.cake` script.
 
 You can do it by using the .NET tool created by CAKE authors and use it to execute the build script.
+
 ```powershell
 dotnet tool install -g Cake.Tool
 dotnet cake
