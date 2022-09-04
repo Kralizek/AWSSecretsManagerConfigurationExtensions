@@ -113,55 +113,55 @@ namespace Kralizek.Extensions.Configuration.Internal
             switch (element.ValueKind)
             {
                 case JsonValueKind.Array:
+                {
+                    var currentIndex = 0;
+                    foreach (var el in element.EnumerateArray())
                     {
-                        var currentIndex = 0;
-                        foreach (var el in element.EnumerateArray())
+                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{currentIndex}";
+                        foreach (var (key, value) in ExtractValues(el, secretKey))
                         {
-                            var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{currentIndex}";
-                            foreach (var (key, value) in ExtractValues(el, secretKey))
-                            {
-                                yield return (key, value);
-                            }
-                            currentIndex++;
+                            yield return (key, value);
                         }
+                        currentIndex++;
                     }
                     break;
+                }
                 case JsonValueKind.Number:
-                    {
-                        var value = element.GetRawText();
-                        yield return (prefix, value);
-                    }
+                {
+                    var value = element.GetRawText();
+                    yield return (prefix, value);
                     break;
+                }
                 case JsonValueKind.String:
-                    {
-                        var value = element.GetString() ?? "";
-                        yield return (prefix, value);
-                    }
+                {
+                    var value = element.GetString() ?? "";
+                    yield return (prefix, value);
                     break;
+                }
                 case JsonValueKind.True:
-                    {
-                        var value = element.GetBoolean();
-                        yield return (prefix, value.ToString());
-                    }
+                {
+                    var value = element.GetBoolean();
+                    yield return (prefix, value.ToString());
                     break;
+                }
                 case JsonValueKind.False:
-                    {
-                        var value = element.GetBoolean();
-                        yield return (prefix, value.ToString());
-                    }
+                {
+                    var value = element.GetBoolean();
+                    yield return (prefix, value.ToString());
                     break;
+                }
                 case JsonValueKind.Object:
+                {
+                    foreach (var property in element.EnumerateObject())
                     {
-                        foreach (var property in element.EnumerateObject())
+                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{property.Name}";
+                        foreach (var (key, value) in ExtractValues(property.Value, secretKey))
                         {
-                            var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{property.Name}";
-                            foreach (var (key, value) in ExtractValues(property.Value, secretKey))
-                            {
-                                yield return (key, value);
-                            }
+                            yield return (key, value);
                         }
                     }
                     break;
+                }
                 case JsonValueKind.Undefined:
                 case JsonValueKind.Null:
                 default:
