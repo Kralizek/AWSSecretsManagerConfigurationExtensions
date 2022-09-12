@@ -223,3 +223,7 @@ You can do it by using the .NET tool created by CAKE authors and use it to execu
 dotnet tool install -g Cake.Tool
 dotnet cake
 ```
+
+## Stargazers over time
+
+[![Stargazers over time](https://starchart.cc/Kralizek/AWSSecretsManagerConfigurationExtensions.svg)](https://starchart.cc/Kralizek/AWSSecretsManagerConfigurationExtensions)
