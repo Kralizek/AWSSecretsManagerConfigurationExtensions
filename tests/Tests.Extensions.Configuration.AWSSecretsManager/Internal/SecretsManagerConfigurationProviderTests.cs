@@ -197,6 +197,20 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
+        public void Get_secret_value_request_can_be_customized_via_options([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, string secretVersionStage, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
+
+            options.ConfigureSecretValueRequest = (request, _) => request.VersionStage = secretVersionStage;
+
+            sut.Load();
+
+            Mock.Get(secretsManager).Verify(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => x.VersionStage == secretVersionStage), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test, CustomAutoData]
         public void Should_throw_on_missing_secret_value([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
