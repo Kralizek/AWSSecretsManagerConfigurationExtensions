@@ -93,5 +93,25 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// </code>
         /// </example>
         public TimeSpan? PollingInterval { get; set; }
+
+        /// <summary>
+        /// Determines whether or not the options for the configuration provider should be read from configuration.
+        /// </summary>
+        public bool ReadFromConfig { get; set; }
+        
+        /// <summary>
+        /// The name of the configuration section containing the options.
+        /// </summary>
+        public string ConfigSectionName { get; set; } = SecretsManagerConfigurationSection.DefaultConfigSectionName;
+        
+        /// <summary>
+        /// Enables the extension to read options from an IConfigurationSection.
+        /// </summary>
+        /// <param name="configSectionName">The name of the configuration section containing the options.</param>
+        public void ReadFromConfigSection(string configSectionName = SecretsManagerConfigurationSection.DefaultConfigSectionName)
+        {
+            ReadFromConfig = true;
+            ConfigSectionName = configSectionName;
+        }
     }
 }

@@ -1,4 +1,3 @@
-using System;
 using Amazon;
 using Amazon.Runtime;
 using Amazon.SecretsManager;
@@ -8,21 +7,22 @@ namespace Kralizek.Extensions.Configuration.Internal
 {
     public class SecretsManagerConfigurationSource : IConfigurationSource
     {
-        public SecretsManagerConfigurationSource(AWSCredentials? credentials = null, SecretsManagerConfigurationProviderOptions? options = null)
+        public SecretsManagerConfigurationSource(AWSCredentials? credentials = null, SecretsManagerConfigurationProviderOptions? options = null, RegionEndpoint? region = null)
         {
             Credentials = credentials;
             Options = options ?? new SecretsManagerConfigurationProviderOptions();
+            Region = region;
         }
 
         public SecretsManagerConfigurationProviderOptions Options { get; }
 
-        public AWSCredentials? Credentials {get; }
+        public AWSCredentials? Credentials { get; private set; }
 
         public RegionEndpoint? Region { get; set; }
 
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
-            var client = CreateClient();
+            var client = CreateClient(); 
             
             return new SecretsManagerConfigurationProvider(client, Options);
         }
@@ -48,5 +48,4 @@ namespace Kralizek.Extensions.Configuration.Internal
             };
         }
     }
-
 }
