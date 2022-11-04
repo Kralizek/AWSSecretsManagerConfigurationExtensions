@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 
-
 namespace Kralizek.Extensions.Configuration.Internal
 {
     public class SecretsManagerConfigurationProviderOptions
@@ -63,12 +62,22 @@ namespace Kralizek.Extensions.Configuration.Internal
         public Func<SecretListEntry, string, string> KeyGenerator { get; set; } = (secret, key) => key;
 
         /// <summary>
+        /// Defines a function that can be used to customize the <see cref="GetSecretValueRequest"/> before it is sent.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT";
+        /// </code>
+        /// </example>
+        public Action<GetSecretValueRequest, SecretValueContext> ConfigureSecretValueRequest { get; set; } = (_, _) => { };
+
+        /// <summary>
         /// A function that can be used to configure the <see cref="AmazonSecretsManagerClient"/>
         /// that's injected into the client.
         /// </summary>
         /// <example>
         /// <code>
-        /// ConfigureSecretsManagerConfig = config => config.Timeout = TimeSpan.FromSeconds(5)
+        /// ConfigureSecretsManagerConfig = config => config.Timeout = TimeSpan.FromSeconds(5);
         /// </code>
         /// </example>
         public Action<AmazonSecretsManagerConfig> ConfigureSecretsManagerConfig { get; set; } = _ => { };

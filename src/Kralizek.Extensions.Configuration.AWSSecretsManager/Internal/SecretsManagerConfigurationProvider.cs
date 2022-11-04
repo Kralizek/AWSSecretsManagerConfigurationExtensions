@@ -8,7 +8,6 @@ using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 
-
 namespace Kralizek.Extensions.Configuration.Internal
 {
     public class SecretsManagerConfigurationProvider : ConfigurationProvider, IDisposable
@@ -215,7 +214,9 @@ namespace Kralizek.Extensions.Configuration.Internal
                 {
                     if (!Options.SecretFilter(secret)) continue;
 
-                    var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN }, cancellationToken).ConfigureAwait(false);
+                    var request = new GetSecretValueRequest { SecretId = secret.ARN };
+                    Options.ConfigureSecretValueRequest?.Invoke(request, new SecretValueContext(secret));
+                    var secretValue = await Client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
 
                     var secretEntry = Options.AcceptedSecretArns.Count > 0
                         ? new SecretListEntry
