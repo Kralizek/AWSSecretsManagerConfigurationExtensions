@@ -191,6 +191,21 @@ builder.AddSecretsManager(configurator: options =>
 
 You can see an example [here](/samples/Sample5).
 
+### Customizing the GetSecretValueRequest
+
+Sometimes we may want to request a different version of the secret or be required to specify the version stage.
+
+In this case, you can provide a function that updates the `GetSecretValueRequest` that is used to retrieve the secret from AWS before the request is sent.
+
+As an example, here we are adding a `VersionStage` of `"AWSCURRENT"` to every `GetSecretValueRequest`.
+
+```csharp
+builder.AddSecretsManager(configurator: options =>
+{
+    options.ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT";
+});
+```
+
 ### Customizing the AmazonSecretsManagerConfig, for example to use localstack
 
 There are some situations where you might want to customize how the AmazonSecretsManagerConfig is built, for example when you want to use

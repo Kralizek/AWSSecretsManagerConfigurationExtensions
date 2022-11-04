@@ -197,7 +197,9 @@ namespace Kralizek.Extensions.Configuration.Internal
                 {
                     if (!Options.SecretFilter(secret)) continue;
 
-                    var secretValue = await Client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN }, cancellationToken).ConfigureAwait(false);
+                    var request = new GetSecretValueRequest { SecretId = secret.ARN };
+                    Options.ConfigureSecretValueRequest?.Invoke(request, new SecretValueContext(secret));
+                    var secretValue = await Client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
 
                     var secretEntry = Options.AcceptedSecretArns.Count > 0
                         ? new SecretListEntry
@@ -214,7 +216,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                     if (secretString is null) 
                         continue;
                     
-                    if (TryParseJson(secretString, out var jToken))
+                    if (TryParseJson(secretString, out var jToken) && jToken is not null)
                     {
                         // [MaybeNullWhen(false)] attribute is available in .net standard since version 2.1
                         var values = ExtractValues(jToken, secretName);
