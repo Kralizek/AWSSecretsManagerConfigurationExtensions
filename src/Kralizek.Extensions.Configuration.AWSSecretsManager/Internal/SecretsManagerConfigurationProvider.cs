@@ -11,21 +11,20 @@ using System.Text.Json;
 
 namespace Kralizek.Extensions.Configuration.Internal
 {
-    public class SecretsManagerConfigurationProvider : ConfigurationProvider, IDisposable
+    public sealed class SecretsManagerConfigurationProvider : ConfigurationProvider, IDisposable
     {
-        public SecretsManagerConfigurationProviderOptions Options { get; }
-
-        public IAmazonSecretsManager Client { get; }
+        private readonly SecretsManagerConfigurationProviderOptions _options;
+        private readonly Lazy<IAmazonSecretsManager> _client;
 
         private HashSet<(string, string)> _loadedValues = new();
         private Task? _pollingTask;
         private CancellationTokenSource? _cancellationToken;
 
-        public SecretsManagerConfigurationProvider(IAmazonSecretsManager client, SecretsManagerConfigurationProviderOptions options)
+        public SecretsManagerConfigurationProvider(SecretsManagerConfigurationProviderOptions options)
         {
-            Options = options ?? throw new ArgumentNullException(nameof(options));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
 
-            Client = client ?? throw new ArgumentNullException(nameof(client));
+            _client = new Lazy<IAmazonSecretsManager>(() => CreateClient(options));
         }
 
         public override void Load()
@@ -43,10 +42,10 @@ namespace Kralizek.Extensions.Configuration.Internal
             _loadedValues = await FetchConfigurationAsync(default).ConfigureAwait(false);
             SetData(_loadedValues, triggerReload: false);
 
-            if (Options.PollingInterval.HasValue)
+            if (_options.SecretsManagerOptions.PollingInterval.HasValue)
             {
                 _cancellationToken = new CancellationTokenSource();
-                _pollingTask = PollForChangesAsync(Options.PollingInterval.Value, _cancellationToken.Token);
+                _pollingTask = PollForChangesAsync(_options.SecretsManagerOptions.PollingInterval.Value, _cancellationToken.Token);
             }
         }
 
@@ -184,9 +183,9 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             var response = default(ListSecretsResponse);
 
-            if (Options.AcceptedSecretArns.Count > 0)
+            if (_options.SecretsManagerOptions.AcceptedSecretArns.Count > 0)
             {
-                return Options.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x, Name = x}).ToList();
+                return _options.SecretsManagerOptions.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x, Name = x}).ToList();
             }
 
             var result = new List<SecretListEntry>();
@@ -195,9 +194,9 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 var nextToken = response?.NextToken;
 
-                var request = new ListSecretsRequest {NextToken = nextToken, Filters = Options.ListSecretsFilters};
+                var request = new ListSecretsRequest {NextToken = nextToken, Filters = _options.SecretsManagerOptions.ListSecretsFilters};
 
-                response = await Client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
+                response = await _client.Value.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
 
                 result.AddRange(response.SecretList);
             } while (response.NextToken != null);
@@ -213,13 +212,13 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 try
                 {
-                    if (!Options.SecretFilter(secret)) continue;
+                    if (!_options.SecretsManagerOptions.SecretFilter(secret)) continue;
 
                     var request = new GetSecretValueRequest { SecretId = secret.ARN };
-                    Options.ConfigureSecretValueRequest?.Invoke(request, new SecretValueContext(secret));
-                    var secretValue = await Client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
+                    _options.SecretsManagerOptions.ConfigureSecretValueRequest?.Invoke(request, new SecretValueContext(secret));
+                    var secretValue = await _client.Value.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
 
-                    var secretEntry = Options.AcceptedSecretArns.Count > 0
+                    var secretEntry = _options.SecretsManagerOptions.AcceptedSecretArns.Count > 0
                         ? new SecretListEntry
                         {
                             ARN = secret.ARN,
@@ -241,13 +240,13 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                         foreach (var (key, value) in values)
                         {
-                            var configurationKey = Options.KeyGenerator(secretEntry, key);
+                            var configurationKey = _options.SecretsManagerOptions.KeyGenerator(secretEntry, key);
                             configuration.Add((configurationKey, value));
                         }
                     }
                     else
                     {
-                        var configurationKey = Options.KeyGenerator(secretEntry, secretName);
+                        var configurationKey = _options.SecretsManagerOptions.KeyGenerator(secretEntry, secretName);
                         configuration.Add((configurationKey, secretString));
                     }
                 }
@@ -257,6 +256,20 @@ namespace Kralizek.Extensions.Configuration.Internal
                 }
             }
             return configuration;
+        }
+        
+        private static IAmazonSecretsManager CreateClient(SecretsManagerConfigurationProviderOptions options)
+        {
+            if (options.CreateClient != null)
+            {
+                return options.CreateClient();
+            }
+            
+            options.ConfigureClient?.Invoke(options.AWSOptions.DefaultClientConfig);
+
+            var client = options.AWSOptions.CreateServiceClient<IAmazonSecretsManager>();
+
+            return client;
         }
 
         public void Dispose()

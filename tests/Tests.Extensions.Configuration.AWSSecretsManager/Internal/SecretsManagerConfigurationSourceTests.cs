@@ -21,7 +21,9 @@ namespace Tests.Internal
         [Test, CustomAutoData]
         public void Build_can_create_a_IConfigurationProvider(IConfigurationBuilder configurationBuilder)
         {
-            var sut = new SecretsManagerConfigurationSource();
+            var options = new SecretsManagerConfigurationProviderOptions();
+            
+            var sut = new SecretsManagerConfigurationSource(options);
 
             var provider = sut.Build(configurationBuilder);
 
@@ -32,7 +34,9 @@ namespace Tests.Internal
         [Test, CustomAutoData]
         public void Build_can_create_a_IConfigurationProvider_with_credentials(AWSCredentials credentials, IConfigurationBuilder configurationBuilder)
         {
-            var sut = new SecretsManagerConfigurationSource(credentials);
+            var options = new SecretsManagerConfigurationProviderOptions();
+            
+            var sut = new SecretsManagerConfigurationSource(options);
 
             var provider = sut.Build(configurationBuilder);
 
@@ -52,18 +56,18 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Build_invokes_config_client_method(IConfigurationBuilder configurationBuilder, Action<AmazonSecretsManagerConfig> secretsManagerConfiguration)
+        public void Build_invokes_config_client_method(IConfigurationBuilder configurationBuilder, Action<ClientConfig> clientConfiguration)
         {
             var options = new SecretsManagerConfigurationProviderOptions
             {
-                ConfigureSecretsManagerConfig = secretsManagerConfiguration
+                ConfigureClient = clientConfiguration
             };
 
             var sut = new SecretsManagerConfigurationSource(options: options);
 
             var provider = sut.Build(configurationBuilder);
 
-            Mock.Get(secretsManagerConfiguration).Verify(p => p(It.Is<AmazonSecretsManagerConfig>(c => c != null)), Times.Once());
+            Mock.Get(clientConfiguration).Verify(p => p(It.Is<ClientConfig>(c => c != null)), Times.Once());
         }
 
         [Test, CustomAutoData]

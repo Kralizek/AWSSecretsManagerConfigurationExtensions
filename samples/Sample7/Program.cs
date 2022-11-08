@@ -9,9 +9,9 @@ var builder = new ConfigurationBuilder();
     Uses options to customize the GetSecretValueRequest (e.g. specify VersionStage)
 */
 
-builder.AddSecretsManager(configurator: options =>
+builder.AddSecretsManager(options =>
 {
-    options.ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT";
+    options.Configure(o => o.ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT");
 });
 
 var configuration = builder.Build();

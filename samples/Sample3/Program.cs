@@ -13,7 +13,11 @@ var chain = new Amazon.Runtime.CredentialManagement.CredentialProfileStoreChain(
 if (chain.TryGetProfile("MyProfile", out var profile))
 {
     var credentials = profile.GetAWSCredentials(profile.CredentialProfileStore);
-    builder.AddSecretsManager(credentials, profile.Region);
+    builder.AddSecretsManager(options => options.ConfigureAWS(o =>
+    {
+        o.Credentials = credentials;
+        o.Region = profile.Region;
+    }));
 }
             
 var configuration = builder.Build();

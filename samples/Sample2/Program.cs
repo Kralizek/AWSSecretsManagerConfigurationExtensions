@@ -9,7 +9,7 @@ var builder = new ConfigurationBuilder();
     Uses eu-west-1 region
     Uses default options
 */
-builder.AddSecretsManager(region: RegionEndpoint.EUWest1);
+builder.AddSecretsManager(options => options.ConfigureAWS(o => o.Region = RegionEndpoint.EUWest1));
 
 var configuration = builder.Build();
 

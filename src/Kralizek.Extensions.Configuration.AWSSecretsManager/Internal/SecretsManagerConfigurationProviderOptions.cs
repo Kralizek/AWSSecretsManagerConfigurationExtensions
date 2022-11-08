@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.Runtime;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 
 namespace Kralizek.Extensions.Configuration.Internal
 {
-    public class SecretsManagerConfigurationProviderOptions
+    public sealed class SecretsManagerOptions
     {
         /// <summary>
         /// A list of identifiers for the secrets that are to be retrieved.
@@ -60,7 +62,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// </code>
         /// </example>
         public Func<SecretListEntry, string, string> KeyGenerator { get; set; } = (secret, key) => key;
-
+        
         /// <summary>
         /// Defines a function that can be used to customize the <see cref="GetSecretValueRequest"/> before it is sent.
         /// </summary>
@@ -70,6 +72,32 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// </code>
         /// </example>
         public Action<GetSecretValueRequest, SecretValueContext> ConfigureSecretValueRequest { get; set; } = (_, _) => { };
+        
+        /// <summary>
+        /// The time that should be waited before refreshing the secrets.
+        /// If null, secrets will not be refreshed.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// PollingInterval = TimeSpan.FromMinutes(15);
+        /// </code>
+        /// </example>
+        public TimeSpan? PollingInterval { get; set; }        
+    }
+    
+    public sealed class SecretsManagerConfigurationProviderOptions
+    {
+        public SecretsManagerConfigurationProviderOptions(AWSOptions awsOptions, SecretsManagerOptions secretsManagerOptions)
+        {
+            AWSOptions = awsOptions ?? throw new ArgumentNullException(nameof(awsOptions));
+            SecretsManagerOptions = secretsManagerOptions ?? throw new ArgumentNullException(nameof(secretsManagerOptions));
+        }
+
+        public SecretsManagerConfigurationProviderOptions() : this(new AWSOptions(), new SecretsManagerOptions()) { }
+        
+        public AWSOptions AWSOptions { get; }
+
+        public SecretsManagerOptions SecretsManagerOptions { get; }
 
         /// <summary>
         /// A function that can be used to configure the <see cref="AmazonSecretsManagerClient"/>
@@ -77,10 +105,10 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// </summary>
         /// <example>
         /// <code>
-        /// ConfigureSecretsManagerConfig = config => config.Timeout = TimeSpan.FromSeconds(5);
+        /// ConfigureClient = config => config.Timeout = TimeSpan.FromSeconds(5);
         /// </code>
         /// </example>
-        public Action<AmazonSecretsManagerConfig> ConfigureSecretsManagerConfig { get; set; } = _ => { };
+        public Action<ClientConfig> ConfigureClient { get; set; } = _ => { };
 
         /// <summary>
         /// A function that can be used to provide a custom method to create a client.
@@ -91,16 +119,5 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// </code>
         /// </example>
         public Func<IAmazonSecretsManager>? CreateClient { get; set; }
-
-        /// <summary>
-        /// The time that should be waited before refreshing the secrets.
-        /// If null, secrets will not be refreshed.
-        /// </summary>
-        /// <example>
-        /// <code>
-        /// PollingInterval = TimeSpan.FromMinutes(15);
-        /// </code>
-        /// </example>
-        public TimeSpan? PollingInterval { get; set; }
     }
 }

@@ -17,9 +17,9 @@ var acceptedARNs = new[]
     "MySecretUniqueName"
 };
 
-builder.AddSecretsManager(configurator: options =>
+builder.AddSecretsManager(options =>
 {
-    options.AcceptedSecretArns.AddRange(acceptedARNs);
+    options.Configure(o => o.AcceptedSecretArns.AddRange(acceptedARNs));
 });
 
 var configuration = builder.Build();
