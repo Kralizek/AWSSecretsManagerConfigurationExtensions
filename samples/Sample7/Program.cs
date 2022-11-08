@@ -1,28 +1,19 @@
 ﻿using System;
 using Microsoft.Extensions.Configuration;
 
-namespace Sample7
+var builder = new ConfigurationBuilder();
+
+/*
+    Uses default credentials
+    Uses default region
+    Uses options to customize the GetSecretValueRequest (e.g. specify VersionStage)
+*/
+
+builder.AddSecretsManager(configurator: options =>
 {
-    internal class Program
-    {
-        private static void Main(string[] _)
-        {
-            var builder = new ConfigurationBuilder();
+    options.ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT";
+});
 
-            /*
-                Uses default credentials
-                Uses default region
-                Uses options to customize the GetSecretValueRequest (e.g. specify VersionStage)
-            */
+var configuration = builder.Build();
 
-            builder.AddSecretsManager(configurator: options =>
-            {
-                options.ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT";
-            });
-
-            var configuration = builder.Build();
-
-            Console.WriteLine("Hello World!");
-        }
-    }
-}
+Console.WriteLine("Hello World!");
