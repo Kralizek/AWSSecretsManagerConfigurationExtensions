@@ -2,35 +2,26 @@
 using System.Linq;
 using Microsoft.Extensions.Configuration;
 
-namespace Sample4
+var builder = new ConfigurationBuilder();
+
+/*
+    Uses default credentials
+    Uses default region
+    Accepts only a fixed set of secrets, by their ARN
+*/
+
+var acceptedARNs = new[]
 {
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            var builder = new ConfigurationBuilder();
+    "MySecretFullARN-abcxyz",
+    "MySecretPartialARN",
+    "MySecretUniqueName"
+};
 
-            /*
-                Uses default credentials
-                Uses default region
-                Accepts only a fixed set of secrets, by their ARN
-            */
+builder.AddSecretsManager(configurator: options =>
+{
+    options.AcceptedSecretArns.AddRange(acceptedARNs);
+});
 
-            var acceptedARNs = new[]
-            {
-                "MySecretARN1",
-                "MySecretARN2",
-                "MySecretARN3",
-            };
+var configuration = builder.Build();
 
-            builder.AddSecretsManager(configurator: options =>
-            {
-                options.SecretFilter = entry => acceptedARNs.Contains(entry.ARN);
-            });
-
-            var configuration = builder.Build();
-
-            Console.WriteLine("Hello World!");
-        }
-    }
-}
+Console.WriteLine("Hello World!");

@@ -1,27 +1,18 @@
 ﻿using System;
 using Microsoft.Extensions.Configuration;
 
-namespace Sample5
+var builder = new ConfigurationBuilder();
+
+/*
+    Uses default credentials
+    Uses default region
+    Uses options to customize how keys are generated (all uppercase)
+*/
+builder.AddSecretsManager(configurator: options =>
 {
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            var builder = new ConfigurationBuilder();
+    options.KeyGenerator = (entry, key) => key.ToUpper();
+});
 
-            /*
-                Uses default credentials
-                Uses default region
-                Uses options to customize how keys are generated (all uppercase)
-            */
-            builder.AddSecretsManager(configurator: options =>
-            {
-                options.KeyGenerator = (entry, key) => key.ToUpper();
-            });
+var configuration = builder.Build();
 
-            var configuration = builder.Build();
-
-            Console.WriteLine("Hello World!");
-        }
-    }
-}
+Console.WriteLine("Hello World!");

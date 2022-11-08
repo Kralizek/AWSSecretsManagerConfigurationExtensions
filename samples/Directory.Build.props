@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
     <IsPackable>false</IsPackable>
+    <RootNamespace>Sample</RootNamespace>
   </PropertyGroup>
 </Project>
