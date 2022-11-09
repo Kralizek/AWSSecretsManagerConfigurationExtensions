@@ -42,10 +42,10 @@ namespace Kralizek.Extensions.Configuration.Internal
             _loadedValues = await FetchConfigurationAsync(default).ConfigureAwait(false);
             SetData(_loadedValues, triggerReload: false);
 
-            if (_options.SecretsManagerOptions.PollingInterval.HasValue)
+            if (_options.SecretsManagerConfiguration.PollingInterval.HasValue)
             {
                 _cancellationToken = new CancellationTokenSource();
-                _pollingTask = PollForChangesAsync(_options.SecretsManagerOptions.PollingInterval.Value, _cancellationToken.Token);
+                _pollingTask = PollForChangesAsync(_options.SecretsManagerConfiguration.PollingInterval.Value, _cancellationToken.Token);
             }
         }
 
@@ -183,9 +183,9 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             var response = default(ListSecretsResponse);
 
-            if (_options.SecretsManagerOptions.AcceptedSecretArns.Count > 0)
+            if (_options.SecretsManagerConfiguration.AcceptedSecretArns.Count > 0)
             {
-                return _options.SecretsManagerOptions.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x, Name = x}).ToList();
+                return _options.SecretsManagerConfiguration.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x, Name = x}).ToList();
             }
 
             var result = new List<SecretListEntry>();
@@ -194,7 +194,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 var nextToken = response?.NextToken;
 
-                var request = new ListSecretsRequest {NextToken = nextToken, Filters = _options.SecretsManagerOptions.ListSecretsFilters};
+                var request = new ListSecretsRequest {NextToken = nextToken, Filters = _options.SecretsManagerConfiguration.ListSecretsFilters};
 
                 response = await _client.Value.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
 
@@ -212,13 +212,13 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 try
                 {
-                    if (!_options.SecretsManagerOptions.SecretFilter(secret)) continue;
+                    if (!_options.SecretsManagerConfiguration.SecretFilter(secret)) continue;
 
                     var request = new GetSecretValueRequest { SecretId = secret.ARN };
-                    _options.SecretsManagerOptions.ConfigureSecretValueRequest?.Invoke(request, new SecretValueContext(secret));
+                    _options.SecretsManagerConfiguration.ConfigureSecretValueRequest?.Invoke(request, new SecretValueContext(secret));
                     var secretValue = await _client.Value.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
 
-                    var secretEntry = _options.SecretsManagerOptions.AcceptedSecretArns.Count > 0
+                    var secretEntry = _options.SecretsManagerConfiguration.AcceptedSecretArns.Count > 0
                         ? new SecretListEntry
                         {
                             ARN = secret.ARN,
@@ -240,13 +240,13 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                         foreach (var (key, value) in values)
                         {
-                            var configurationKey = _options.SecretsManagerOptions.KeyGenerator(secretEntry, key);
+                            var configurationKey = _options.SecretsManagerConfiguration.KeyGenerator(secretEntry, key);
                             configuration.Add((configurationKey, value));
                         }
                     }
                     else
                     {
-                        var configurationKey = _options.SecretsManagerOptions.KeyGenerator(secretEntry, secretName);
+                        var configurationKey = _options.SecretsManagerConfiguration.KeyGenerator(secretEntry, secretName);
                         configuration.Add((configurationKey, secretString));
                     }
                 }
@@ -260,9 +260,9 @@ namespace Kralizek.Extensions.Configuration.Internal
         
         private static IAmazonSecretsManager CreateClient(SecretsManagerConfigurationProviderOptions options)
         {
-            if (options.CreateClient != null)
+            if (options.SecretsManagerConfiguration.ClientFactory != null)
             {
-                return options.CreateClient();
+                return options.SecretsManagerConfiguration.ClientFactory();
             }
             
             options.ConfigureClient?.Invoke(options.AWSOptions.DefaultClientConfig);

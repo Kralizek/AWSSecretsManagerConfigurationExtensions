@@ -1,6 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
-using Amazon.Extensions.NETCore.Setup;
 using Microsoft.Extensions.Configuration;
 
 var configurationBuilder = new ConfigurationBuilder();
@@ -36,13 +35,14 @@ configurationBuilder.AddObject(new
 
 var configuration = configurationBuilder.Build();
 
-configurationBuilder.AddSecretsManager(options =>
-{
-    options.UseConfiguration(configuration.GetSection("SecretsManager").GetSecretsManagerOptions());
+var secretsManagerConfiguration = configuration.GetSection("SecretsManager").GetSecretsManagerOptions();
+secretsManagerConfiguration.AcceptedSecretArns.Add("arn:example:03");
 
-    options.Configure(o => o.AcceptedSecretArns.Add("arn:example:03"));
+var awsOptions = configuration.GetSection("SecretsManagerProfile").GetAWSOptions();
+awsOptions.DefaultClientConfig.Timeout = TimeSpan.FromSeconds(1);
 
-    options.UseAWSOptions(configuration.GetSection("SecretsManagerProfile").GetAWSOptions());
-});
+configurationBuilder.AddSecretsManager(secretsManagerConfiguration, awsOptions);
+
+configuration = configurationBuilder.Build();
 
 Console.WriteLine("Hello, World!");
