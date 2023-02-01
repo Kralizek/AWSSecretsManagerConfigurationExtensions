@@ -1,3 +1,5 @@
+<a href="https://www.buymeacoffee.com/rengol"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a pizza&emoji=🍕&slug=rengol&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" /></a>
+
 [![Build status](https://ci.appveyor.com/api/projects/status/28xqpt2i138mg44v/branch/master?svg=true)](https://ci.appveyor.com/project/Kralizek/awssecretsmanagerconfigurationextensions/branch/master) [![NuGet version](https://img.shields.io/nuget/vpre/Kralizek.Extensions.Configuration.AWSSecretsManager.svg)](https://www.nuget.org/packages/Kralizek.Extensions.Configuration.AWSSecretsManager)
 
 This repository contains a provider for [Microsoft.Extensions.Configuration](https://www.nuget.org/packages/Microsoft.Extensions.Configuration/) that retrieves secrets stored in [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/).
@@ -242,3 +244,4 @@ dotnet cake
 ## Stargazers over time
 
 [![Stargazers over time](https://starchart.cc/Kralizek/AWSSecretsManagerConfigurationExtensions.svg)](https://starchart.cc/Kralizek/AWSSecretsManagerConfigurationExtensions)
+
