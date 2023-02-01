@@ -67,7 +67,7 @@ namespace Tests
         {
             configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
 
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, credentials, region);
+            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, region, credentials);
 
             configurationBuilder.Verify(m => m.Add(It.Is<SecretsManagerConfigurationSource>(s => s.Region == region)));
         }

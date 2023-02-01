@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Linq;
+using Kralizek.Extensions.Configuration;
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
@@ -17,10 +17,10 @@ var acceptedARNs = new[]
     "MySecretUniqueName"
 };
 
-builder.AddSecretsManager(configurator: options =>
-{
-    options.AcceptedSecretArns.AddRange(acceptedARNs);
-});
+var secretsManagerConfiguration = new SecretsManagerConfiguration();
+secretsManagerConfiguration.AcceptedSecretArns.AddRange(acceptedARNs);
+
+builder.AddSecretsManager(secretsManagerConfiguration);
 
 var configuration = builder.Build();
 

@@ -110,7 +110,7 @@ namespace Tests.Internal
         {
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
-            options.SecretFilter = entry => false;
+            options.SecretsManagerConfiguration.SecretFilter = entry => false;
 
             sut.Load();
 
@@ -126,9 +126,9 @@ namespace Tests.Internal
             var firstSecretArn = listSecretsResponse.SecretList.Select(x => x.ARN).First();
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => x.SecretId.Equals(firstSecretArn)), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
             
-            options.SecretFilter = entry => true;
-            options.AcceptedSecretArns = new List<string> {firstSecretArn};
-            options.KeyGenerator = (entry, key) => secretKey;
+            options.SecretsManagerConfiguration.SecretFilter = entry => true;
+            options.SecretsManagerConfiguration.AcceptedSecretArns = new List<string> {firstSecretArn};
+            options.SecretsManagerConfiguration.KeyGenerator = (entry, key) => secretKey;
 
             sut.Load();
 
@@ -144,7 +144,7 @@ namespace Tests.Internal
         {
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => x.SecretId.Equals(getSecretValueResponse.ARN)), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
-            options.AcceptedSecretArns = new List<string> { getSecretValueResponse.ARN };
+            options.SecretsManagerConfiguration.AcceptedSecretArns = new List<string> { getSecretValueResponse.ARN };
 
             Assert.DoesNotThrow(sut.Load);
 
@@ -156,13 +156,13 @@ namespace Tests.Internal
         [Test, CustomAutoData]
         public void Secrets_can_be_filtered_out_via_options_on_fetching([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            options.ListSecretsFilters = new List<Filter> { new Filter { Key = FilterNameStringType.Name, Values = new List<string> { testEntry.Name } } };
+            options.SecretsManagerConfiguration.ListSecretsFilters = new List<Filter> { new Filter { Key = FilterNameStringType.Name, Values = new List<string> { testEntry.Name } } };
 
-            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.Is<ListSecretsRequest>(request => request.Filters == options.ListSecretsFilters), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.Is<ListSecretsRequest>(request => request.Filters == options.SecretsManagerConfiguration.ListSecretsFilters), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
             sut.Load();
 
-            Mock.Get(secretsManager).Verify(p => p.ListSecretsAsync(It.Is<ListSecretsRequest>(request => request.Filters == options.ListSecretsFilters), It.IsAny<CancellationToken>()));
+            Mock.Get(secretsManager).Verify(p => p.ListSecretsAsync(It.Is<ListSecretsRequest>(request => request.Filters == options.SecretsManagerConfiguration.ListSecretsFilters), It.IsAny<CancellationToken>()));
 
             Assert.That(sut.Get(testEntry.Name), Is.Null);
         }
@@ -174,7 +174,7 @@ namespace Tests.Internal
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
-            options.KeyGenerator = (entry, key) => newKey;
+            options.SecretsManagerConfiguration.KeyGenerator = (entry, key) => newKey;
 
             sut.Load();
 
@@ -203,7 +203,7 @@ namespace Tests.Internal
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
 
-            options.ConfigureSecretValueRequest = (request, _) => request.VersionStage = secretVersionStage;
+            options.SecretsManagerConfiguration.ConfigureSecretValueRequest = (request, _) => request.VersionStage = secretVersionStage;
 
             sut.Load();
 
@@ -229,7 +229,7 @@ namespace Tests.Internal
                                     .ReturnsAsync(getSecretValueInitialResponse)
                                     .ReturnsAsync(getSecretValueUpdatedResponse);
 
-            options.PollingInterval = TimeSpan.FromMilliseconds(100);
+            options.SecretsManagerConfiguration.PollingInterval = TimeSpan.FromMilliseconds(100);
 
             sut.GetReloadToken().RegisterChangeCallback(changeCallback, changeCallbackState);
 

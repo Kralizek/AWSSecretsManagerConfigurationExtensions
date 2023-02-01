@@ -1,4 +1,5 @@
 ﻿using System;
+using Kralizek.Extensions.Configuration.Internal;
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
@@ -8,9 +9,9 @@ var builder = new ConfigurationBuilder();
     Uses default region
     Uses options to customize how keys are generated (all uppercase)
 */
-builder.AddSecretsManager(configurator: options =>
+builder.AddSecretsManager(new SecretsManagerConfiguration
 {
-    options.KeyGenerator = (entry, key) => key.ToUpper();
+    KeyGenerator = (entry, key) => key.ToUpper()
 });
 
 var configuration = builder.Build();

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Amazon.SecretsManager.Model;
 
-namespace Kralizek.Extensions.Configuration.Internal
+namespace Kralizek.Extensions.Configuration
 {
     /// <summary>
     /// A secret context when making a request to get a secret value.
@@ -20,11 +20,11 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// <summary>
         /// The secret name.
         /// </summary>
-        public string Name { get; private set; }
+        public string Name { get; }
 
         /// <summary>
         /// A list of all the secret's currently assigned SecretVersionStage staging levels and SecretVersionId attached to each one.
         /// </summary>
-        public Dictionary<string, List<string>> VersionsToStages { get; private set; }
+        public Dictionary<string, List<string>> VersionsToStages { get; }
     }
 }

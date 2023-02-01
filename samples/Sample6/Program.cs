@@ -8,9 +8,9 @@ var builder = new ConfigurationBuilder();
 /*
     Uses the specified client factory method
 */
-builder.AddSecretsManager(configurator: options =>
+builder.AddSecretsManager(new SecretsManagerConfiguration
 {
-    options.CreateClient = CreateClient;
+    ClientFactory = CreateClient
 });
 
 var configuration = builder.Build();

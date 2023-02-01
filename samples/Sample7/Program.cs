@@ -1,4 +1,5 @@
 ﻿using System;
+using Kralizek.Extensions.Configuration.Internal;
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
@@ -8,10 +9,9 @@ var builder = new ConfigurationBuilder();
     Uses default region
     Uses options to customize the GetSecretValueRequest (e.g. specify VersionStage)
 */
-
-builder.AddSecretsManager(configurator: options =>
+builder.AddSecretsManager(new SecretsManagerConfiguration
 {
-    options.ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT";
+    ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT"
 });
 
 var configuration = builder.Build();

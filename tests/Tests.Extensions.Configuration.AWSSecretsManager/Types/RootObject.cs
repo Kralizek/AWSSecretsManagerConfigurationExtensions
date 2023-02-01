@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Tests.Types
+﻿namespace Tests.Types
 {
     public class RootObject
     {

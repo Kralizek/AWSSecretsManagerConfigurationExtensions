@@ -1,4 +1,5 @@
 ﻿using System;
+using Amazon.Extensions.NETCore.Setup;
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
@@ -13,7 +14,8 @@ var chain = new Amazon.Runtime.CredentialManagement.CredentialProfileStoreChain(
 if (chain.TryGetProfile("MyProfile", out var profile))
 {
     var credentials = profile.GetAWSCredentials(profile.CredentialProfileStore);
-    builder.AddSecretsManager(credentials, profile.Region);
+
+    builder.AddSecretsManager(new AWSOptions { Region = profile.Region, Credentials = credentials });
 }
             
 var configuration = builder.Build();
