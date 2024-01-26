@@ -4,7 +4,6 @@ using AutoFixture;
 using AutoFixture.NUnit3;
 using Kralizek.Extensions.Configuration.Internal;
 using Moq;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -12,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Tests.Types;
+using System.Text.Json;
 
 namespace Tests.Internal
 {
@@ -35,7 +35,7 @@ namespace Tests.Internal
         public void Complex_JSON_objects_in_string_can_be_handled([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, RootObject test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
-                                                .With(p => p.SecretString, JsonConvert.SerializeObject(test))
+                                                .With(p => p.SecretString, JsonSerializer.Serialize(test))
                                                 .Without(p => p.SecretBinary)
                                                 .Create();
 
@@ -54,7 +54,7 @@ namespace Tests.Internal
         public void Complex_JSON_objects_with_arrays_can_be_handled([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, RootObjectWithArray test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
-                                                .With(p => p.SecretString, JsonConvert.SerializeObject(test))
+                                                .With(p => p.SecretString, JsonSerializer.Serialize(test))
                                                 .Without(p => p.SecretBinary)
                                                 .Create();
 
@@ -72,7 +72,7 @@ namespace Tests.Internal
         public void Array_Of_Complex_JSON_objects_with_arrays_can_be_handled([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, RootObjectWithArray[] test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
-                                                .With(p => p.SecretString, JsonConvert.SerializeObject(test))
+                                                .With(p => p.SecretString, JsonSerializer.Serialize(test))
                                                 .Without(p => p.SecretBinary)
                                                 .Create();
 
@@ -283,7 +283,7 @@ namespace Tests.Internal
         [Test, CustomAutoData]
         public void JSON_with_leading_spaces_should_be_processed_as_JSON([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, RootObject test, [Frozen] IAmazonSecretsManager secretsManager, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
-            var secretString = " " + JsonConvert.SerializeObject(test);
+            var secretString = " " + JsonSerializer.Serialize(test);
 
             var getSecretValueResponse = fixture.Build<GetSecretValueResponse>()
                 .With(p => p.SecretString, secretString)
