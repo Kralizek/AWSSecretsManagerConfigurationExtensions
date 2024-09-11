@@ -57,12 +57,14 @@ This code is also available in [this sample](/samples/Sample1).
 
 **Note**: the snippets above assume that some [AWS credentials are available by default](https://aws.amazon.com/blogs/security/a-new-and-standardized-way-to-manage-credentials-in-the-aws-sdks/) to your application. [Here](https://docs.aws.amazon.com/sdk-for-net/v3/developer-guide/net-dg-config-creds.html) you can see how to setup your environment.
 
-## Community contributions
+## Mentions by the community
 
 * [Secure secrets storage for ASP.NET Core with AWS Secrets Manager (Part 1)](https://andrewlock.net/secure-secrets-storage-for-asp-net-core-with-aws-secrets-manager-part-1/) by Andrew Lock
 * [Secure secrets storage for ASP.NET Core with AWS Secrets Manager (Part 2)](https://andrewlock.net/secure-secrets-storage-for-asp-net-core-with-aws-secrets-manager-part-2/) by Andrew Lock
 * [Useful tools to manage your application's secrets](https://raygun.com/blog/manage-application-secrets/) by Jerrie Pelser
 * [Storing secrets CORRECTLY in .NET using AWS Secrets Manager](https://www.youtube.com/watch?v=BGW4FnEB-CM) by [Nick Chapsas](https://github.com/Elfocrash)
+* [Effortless Secret Management in .NET Using AWS Secrets Manager](https://www.youtube.com/watch?v=hDVdLNJfaNU) by [Milan Jovanović](https://github.com/m-jovanovic)
+* [Cloud Fundamentals: AWS Services for C# Developers](https://dometrain.com/course/cloud-fundamentals-aws-services-for-c-developers/) by [Nick Chapsas](https://github.com/Elfocrash)
 
 ## Amazon Elastic Kubernetes Service (EKS)
 
