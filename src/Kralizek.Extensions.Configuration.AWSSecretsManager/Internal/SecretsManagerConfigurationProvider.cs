@@ -40,8 +40,12 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         private async Task LoadAsync()
         {
-            _loadedValues = await FetchConfigurationAsync(default).ConfigureAwait(false);
+            _loadedValues = Options.UseBatchFetch
+                ? await FetchConfigurationBatchAsync(default).ConfigureAwait(false)
+                : await FetchConfigurationAsync(default).ConfigureAwait(false);
+            
             SetData(_loadedValues, triggerReload: false);
+            
 
             if (Options.PollingInterval.HasValue)
             {
@@ -68,8 +72,11 @@ namespace Kralizek.Extensions.Configuration.Internal
         private async Task ReloadAsync(CancellationToken cancellationToken)
         {
             var oldValues = _loadedValues;
-            var newValues = await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false);
 
+            var newValues = Options.UseBatchFetch
+                ? await FetchConfigurationBatchAsync(cancellationToken).ConfigureAwait(false)
+                : await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false);
+            
             if (!oldValues.SetEquals(newValues))
             {
                 _loadedValues = newValues;
@@ -256,6 +263,100 @@ namespace Kralizek.Extensions.Configuration.Internal
                     throw new MissingSecretValueException($"Error retrieving secret value (Secret: {secret.Name} Arn: {secret.ARN})", secret.Name, secret.ARN, e);
                 }
             }
+            return configuration;
+        }
+        
+        private static List<List<SecretListEntry>> ChunkList(IReadOnlyList<SecretListEntry> source,
+            Func<SecretListEntry, bool> optionsSecretFilter, int chunkSize)
+        {
+            // This is for sake of cleanliness vs getting 'fancy' with things.
+            // We can always optimize later.
+            return source
+                .Where(sle=> !optionsSecretFilter(sle))
+                .Select((item, index) => new { item, index })
+                .GroupBy(x => x.index / chunkSize)
+                .Select(group => group.Select(x => x.item).ToList())
+                .ToList();
+        }
+
+        private async Task<HashSet<(string, string)>> FetchConfigurationBatchAsync(CancellationToken cancellationToken)
+        {
+            var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
+            var configuration = new HashSet<(string, string)>();
+            var chunked = ChunkList(secrets, Options.SecretFilter, 20);
+            foreach (var secretSet in chunked)
+            {
+                var request = new BatchGetSecretValueRequest() { SecretIdList = secretSet.Select(a => a.ARN).ToList() };
+                Options.ConfigureBatchSecretValueRequest(request,
+                    secretSet.Select(a => new SecretValueContext(a)).ToList());
+                //Paranoia safety code here... may not be needed with our chunking strategy.
+                var resultSet = new List<BatchGetSecretValueResponse>();
+
+                try
+                {
+                    var secretValueSet = await Client.BatchGetSecretValueAsync(request, cancellationToken)
+                        .ConfigureAwait(false);
+                    while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken))
+                    {
+                        resultSet.Add(secretValueSet);
+                        request.NextToken = secretValueSet.NextToken;
+                        secretValueSet = await Client.BatchGetSecretValueAsync(request, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+
+                    resultSet.Add(secretValueSet);
+                    
+                    foreach (var (secretValue, secret) in
+                             resultSet.SelectMany(a => a.SecretValues.Select(b => b))
+                                 .Join(secretSet, a => a.ARN, b => b.ARN, (a, b) => (a, b)))
+                    {
+
+                        var secretEntry = Options.AcceptedSecretArns.Count > 0
+                            ? new SecretListEntry
+                            {
+                                // was ARN = secret.ARN, can join if 
+                                ARN = secret.ARN,
+                                Name = secretValue.Name,
+                                CreatedDate = secretValue.CreatedDate
+                            }
+                            : secret;
+
+                        var secretName = secretEntry.Name;
+                        var secretString = secretValue.SecretString;
+
+                        if (secretString is null)
+                            continue;
+
+                        if (TryParseJson(secretString, out var jElement))
+                        {
+                            // [MaybeNullWhen(false)] attribute is available in .net standard since version 2.1
+                            var values = ExtractValues(jElement!, secretName);
+
+                            foreach (var (key, value) in values)
+                            {
+                                var configurationKey = Options.KeyGenerator(secretEntry, key);
+                                configuration.Add((configurationKey, value));
+                            }
+                        }
+                        else
+                        {
+                            var configurationKey = Options.KeyGenerator(secretEntry, secretName);
+                            configuration.Add((configurationKey, secretString));
+                        }
+
+                    }
+                }
+                catch (ResourceNotFoundException e)
+                {
+                    throw new MissingSecretValueException(
+                        $"Error retrieving secret value (Secrets: {secretSet.Select(a => a.Name).Aggregate((a, b) => a + "," + b)} " +
+                        $"Arns: {secretSet.Select(a => a.ARN).Aggregate((a, b) => a + "," + b)})",
+                        secretSet.Select(a => a.Name).Aggregate((a, b) => a + "," + b),
+                        secretSet.Select(a => a.ARN).Aggregate((a, b) => a + "," + b), e);
+                }
+
+            }
+
             return configuration;
         }
 
