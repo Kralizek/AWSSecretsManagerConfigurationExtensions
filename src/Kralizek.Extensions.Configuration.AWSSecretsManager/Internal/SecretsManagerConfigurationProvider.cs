@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
+using Amazon.Runtime;
+using Amazon.SecretsManager.Model.Internal.MarshallTransformations;
 
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -208,7 +211,6 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                 result.AddRange(response.SecretList);
             } while (response.NextToken != null);
-
             return result;
         }
 
@@ -289,13 +291,18 @@ namespace Kralizek.Extensions.Configuration.Internal
                 var request = new BatchGetSecretValueRequest() { SecretIdList = secretSet.Select(a => a.ARN).ToList() };
                 Options.ConfigureBatchSecretValueRequest(request,
                     secretSet.Select(a => new SecretValueContext(a)).ToList());
-                //Paranoia safety code here... may not be needed with our chunking strategy.
+                //Paranoia safety code here... probably not be needed with our chunking strategy.
                 var resultSet = new List<BatchGetSecretValueResponse>();
 
                 try
                 {
                     var secretValueSet = await Client.BatchGetSecretValueAsync(request, cancellationToken)
                         .ConfigureAwait(false);
+                    if (secretValueSet.Errors?.Any() == true)
+                    {
+                        var set = HandleBatchErrors(secretValueSet);
+                        throw new AggregateException(set);
+                    }
                     while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken))
                     {
                         resultSet.Add(secretValueSet);
@@ -314,7 +321,6 @@ namespace Kralizek.Extensions.Configuration.Internal
                         var secretEntry = Options.AcceptedSecretArns.Count > 0
                             ? new SecretListEntry
                             {
-                                // was ARN = secret.ARN, can join if 
                                 ARN = secret.ARN,
                                 Name = secretValue.Name,
                                 CreatedDate = secretValue.CreatedDate
@@ -358,6 +364,26 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
 
             return configuration;
+        }
+
+        private static List<Exception> HandleBatchErrors(BatchGetSecretValueResponse secretValueSet)
+        {
+            var set = secretValueSet.Errors.Select<APIErrorType, Exception>(errorResponse =>
+            {
+                return errorResponse.ErrorCode switch
+                {
+                    "DecryptionFailure" => new DecryptionFailureException(errorResponse.Message),
+                    "InternalServiceError" => new InternalServiceErrorException(errorResponse.Message),
+                    "InvalidParameterException" => new InvalidParameterException(errorResponse.Message),
+                    "InvalidRequestException" => new InvalidRequestException(errorResponse.Message),
+                    "ResourceNotFoundException" => new MissingSecretValueException(errorResponse.Message,
+                        errorResponse.SecretId, errorResponse.SecretId,
+                        new ResourceNotFoundException(errorResponse.Message)),
+                    _ => new AmazonServiceException(errorResponse.Message, ErrorType.Unknown, errorResponse.ErrorCode,
+                        "UNKNONWN", HttpStatusCode.Ambiguous)
+                };
+            }).ToList();
+            return set;
         }
 
         public void Dispose()

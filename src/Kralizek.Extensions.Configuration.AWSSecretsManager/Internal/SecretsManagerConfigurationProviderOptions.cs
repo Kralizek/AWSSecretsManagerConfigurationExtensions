@@ -119,6 +119,8 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// If True, Requests will use BatchGetSecretValue to retrieve up to 20 secrets at a time.
         /// If set to true, <see cref="ConfigureSecretValueRequest"/> will no longer work,
         /// you must instead use <see cref="ConfigureBatchSecretValueRequest"/>
+        /// <para/>
+        /// Note: You must make sure secretsmanager:BatchGetSecretValue is allowed for the resource!
         /// </summary>
         public bool UseBatchFetch { get; set; }
     }
