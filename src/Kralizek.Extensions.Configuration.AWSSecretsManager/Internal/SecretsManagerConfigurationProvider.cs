@@ -372,15 +372,24 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 return errorResponse.ErrorCode switch
                 {
-                    "DecryptionFailure" => new DecryptionFailureException(errorResponse.Message),
-                    "InternalServiceError" => new InternalServiceErrorException(errorResponse.Message),
-                    "InvalidParameterException" => new InvalidParameterException(errorResponse.Message),
-                    "InvalidRequestException" => new InvalidRequestException(errorResponse.Message),
+                    "DecryptionFailure" => new DecryptionFailureException(errorResponse.Message, ErrorType.Unknown,
+                        errorResponse.ErrorCode, secretValueSet.ResponseMetadata.RequestId,
+                        secretValueSet.HttpStatusCode),
+                    "InternalServiceError" => new InternalServiceErrorException(errorResponse.Message,
+                        ErrorType.Unknown, errorResponse.ErrorCode, secretValueSet.ResponseMetadata.RequestId,
+                        secretValueSet.HttpStatusCode),
+                    "InvalidParameterException" => new InvalidParameterException(errorResponse.Message,
+                        ErrorType.Unknown, errorResponse.ErrorCode, secretValueSet.ResponseMetadata.RequestId,
+                        secretValueSet.HttpStatusCode),
+                    "InvalidRequestException" => new InvalidRequestException(errorResponse.Message, ErrorType.Unknown,
+                        errorResponse.ErrorCode, secretValueSet.ResponseMetadata.RequestId,
+                        secretValueSet.HttpStatusCode),
                     "ResourceNotFoundException" => new MissingSecretValueException(errorResponse.Message,
                         errorResponse.SecretId, errorResponse.SecretId,
-                        new ResourceNotFoundException(errorResponse.Message)),
+                        new ResourceNotFoundException(errorResponse.Message, ErrorType.Unknown, errorResponse.ErrorCode,
+                            secretValueSet.ResponseMetadata.RequestId, secretValueSet.HttpStatusCode)),
                     _ => new AmazonServiceException(errorResponse.Message, ErrorType.Unknown, errorResponse.ErrorCode,
-                        "UNKNONWN", HttpStatusCode.Ambiguous)
+                        secretValueSet.ResponseMetadata.RequestId, secretValueSet.HttpStatusCode)
                 };
             }).ToList();
             return set;
