@@ -7,6 +7,7 @@ using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
+using Amazon.Runtime;
 
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -40,8 +41,14 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         private async Task LoadAsync()
         {
-            _loadedValues = await FetchConfigurationAsync(default).ConfigureAwait(false);
+            _loadedValues = Options.UseBatchFetch switch
+            {
+                true => await FetchConfigurationBatchAsync(default).ConfigureAwait(false),
+                _ => await FetchConfigurationAsync(default).ConfigureAwait(false)
+            };
+            
             SetData(_loadedValues, triggerReload: false);
+            
 
             if (Options.PollingInterval.HasValue)
             {
@@ -68,8 +75,13 @@ namespace Kralizek.Extensions.Configuration.Internal
         private async Task ReloadAsync(CancellationToken cancellationToken)
         {
             var oldValues = _loadedValues;
-            var newValues = await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false);
 
+            var newValues = Options.UseBatchFetch switch
+            {
+                true => await FetchConfigurationBatchAsync(cancellationToken).ConfigureAwait(false),
+                _ => await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false)
+            };
+            
             if (!oldValues.SetEquals(newValues))
             {
                 _loadedValues = newValues;
@@ -201,7 +213,6 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                 result.AddRange(response.SecretList);
             } while (response.NextToken != null);
-
             return result;
         }
 
@@ -257,6 +268,130 @@ namespace Kralizek.Extensions.Configuration.Internal
                 }
             }
             return configuration;
+        }
+        
+        private static List<List<SecretListEntry>> ChunkList(IReadOnlyList<SecretListEntry> source,
+            Func<SecretListEntry, bool> optionsSecretFilter, int chunkSize)
+        {
+            // This is for sake of cleanliness vs getting 'fancy' with things.
+            // We can always optimize later.
+            return source
+                .Where(optionsSecretFilter)
+                .Select(static (item, index) => (item, index))
+                .GroupBy(x => x.index / chunkSize)
+                .Select(static group => group.Select(static x => x.item).ToList())
+                .ToList();
+        }
+
+        private async Task<HashSet<(string, string)>> FetchConfigurationBatchAsync(CancellationToken cancellationToken)
+        {
+            var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
+            var configuration = new HashSet<(string, string)>();
+            var chunked = ChunkList(secrets, Options.SecretFilter, 20);
+            foreach (var secretSet in chunked)
+            {
+                var request = new BatchGetSecretValueRequest() { SecretIdList = secretSet.Select(a => a.ARN).ToList() };
+                Options.ConfigureBatchSecretValueRequest(request,
+                    secretSet.Select(a => new SecretValueContext(a)).ToList());
+                //Paranoia safety code here... probably not be needed with our chunking strategy.
+                var resultSet = new List<BatchGetSecretValueResponse>();
+
+                try
+                {
+                    var secretValueSet = default(BatchGetSecretValueResponse);
+                    do
+                    {
+                        request.NextToken = secretValueSet?.NextToken;
+                        secretValueSet = await Client.BatchGetSecretValueAsync(request, cancellationToken)
+                            .ConfigureAwait(false);
+                        if (secretValueSet.Errors?.Any() == true)
+                        {
+                            var set = HandleBatchErrors(secretValueSet);
+                            throw new AggregateException(set);
+                        }
+                        resultSet.Add(secretValueSet);
+                    } while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken));
+                    
+                    foreach (var (secretValue, secret) in
+                             resultSet.SelectMany(a => a.SecretValues.Select(b => b))
+                                 .Join(secretSet, a => a.ARN, b => b.ARN, (a, b) => (a, b)))
+                    {
+
+                        var secretEntry = Options.AcceptedSecretArns.Count > 0
+                            ? new SecretListEntry
+                            {
+                                ARN = secret.ARN,
+                                Name = secretValue.Name,
+                                CreatedDate = secretValue.CreatedDate
+                            }
+                            : secret;
+
+                        var secretName = secretEntry.Name;
+                        var secretString = secretValue.SecretString;
+
+                        if (secretString is null)
+                            continue;
+
+                        if (TryParseJson(secretString, out var jElement))
+                        {
+                            // [MaybeNullWhen(false)] attribute is available in .net standard since version 2.1
+                            var values = ExtractValues(jElement!, secretName);
+
+                            foreach (var (key, value) in values)
+                            {
+                                var configurationKey = Options.KeyGenerator(secretEntry, key);
+                                configuration.Add((configurationKey, value));
+                            }
+                        }
+                        else
+                        {
+                            var configurationKey = Options.KeyGenerator(secretEntry, secretName);
+                            configuration.Add((configurationKey, secretString));
+                        }
+
+                    }
+                }
+                catch (ResourceNotFoundException e)
+                {
+                    throw new MissingSecretValueException(
+                        $"Error retrieving secret value (Secrets: {secretSet.Select(a => a.Name).Aggregate((a, b) => a + "," + b)} " +
+                        $"Arns: {secretSet.Select(a => a.ARN).Aggregate((a, b) => a + "," + b)})",
+                        secretSet.Select(a => a.Name).Aggregate((a, b) => a + "," + b),
+                        secretSet.Select(a => a.ARN).Aggregate((a, b) => a + "," + b), e);
+                }
+
+            }
+
+            return configuration;
+        }
+
+        private static List<Exception> HandleBatchErrors(BatchGetSecretValueResponse secretValueSet)
+        {
+            var set = secretValueSet.Errors.Select<APIErrorType, Exception>(errorResponse =>
+            {
+                return errorResponse.ErrorCode switch
+                {
+                    "DecryptionFailure" => new DecryptionFailureException(errorResponse.Message, ErrorType.Unknown,
+                        errorResponse.ErrorCode, secretValueSet.ResponseMetadata.RequestId,
+                        secretValueSet.HttpStatusCode),
+                    "InternalServiceError" => new InternalServiceErrorException(errorResponse.Message,
+                        ErrorType.Unknown, errorResponse.ErrorCode, secretValueSet.ResponseMetadata.RequestId,
+                        secretValueSet.HttpStatusCode),
+                    "InvalidParameterException" => new InvalidParameterException(errorResponse.Message,
+                        ErrorType.Unknown, errorResponse.ErrorCode, secretValueSet.ResponseMetadata.RequestId,
+                        secretValueSet.HttpStatusCode),
+                    "InvalidRequestException" => new InvalidRequestException(errorResponse.Message, ErrorType.Unknown,
+                        errorResponse.ErrorCode, secretValueSet.ResponseMetadata.RequestId,
+                        secretValueSet.HttpStatusCode),
+                    "ResourceNotFoundException" => new MissingSecretValueException(errorResponse.Message,
+                        errorResponse.SecretId, errorResponse.SecretId,
+                        new ResourceNotFoundException(errorResponse.Message, ErrorType.Unknown, errorResponse.ErrorCode,
+                            secretValueSet.ResponseMetadata.RequestId, secretValueSet.HttpStatusCode)),
+                    _ => new AmazonServiceException(errorResponse.Message, ErrorType.Unknown, errorResponse.ErrorCode,
+                        secretValueSet.ResponseMetadata.RequestId, secretValueSet.HttpStatusCode)
+                };
+            }).ToList();
+            return set;
         }
 
         public void Dispose()
