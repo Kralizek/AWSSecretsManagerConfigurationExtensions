@@ -43,9 +43,11 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         private async Task LoadAsync()
         {
-            _loadedValues = Options.UseBatchFetch
-                ? await FetchConfigurationBatchAsync(default).ConfigureAwait(false)
-                : await FetchConfigurationAsync(default).ConfigureAwait(false);
+            _loadedValues = Options.UseBatchFetch switch
+            {
+                true => await FetchConfigurationBatchAsync(default).ConfigureAwait(false),
+                _ => await FetchConfigurationAsync(default).ConfigureAwait(false)
+            };
             
             SetData(_loadedValues, triggerReload: false);
             
@@ -76,9 +78,11 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             var oldValues = _loadedValues;
 
-            var newValues = Options.UseBatchFetch
-                ? await FetchConfigurationBatchAsync(cancellationToken).ConfigureAwait(false)
-                : await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false);
+            var newValues = Options.UseBatchFetch switch
+            {
+                true => await FetchConfigurationBatchAsync(cancellationToken).ConfigureAwait(false),
+                _ => await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false)
+            };
             
             if (!oldValues.SetEquals(newValues))
             {
@@ -274,10 +278,10 @@ namespace Kralizek.Extensions.Configuration.Internal
             // This is for sake of cleanliness vs getting 'fancy' with things.
             // We can always optimize later.
             return source
-                .Where(sle=> !optionsSecretFilter(sle))
-                .Select((item, index) => new { item, index })
+                .Where(optionsSecretFilter)
+                .Select(static (item, index) => (item, index))
                 .GroupBy(x => x.index / chunkSize)
-                .Select(group => group.Select(x => x.item).ToList())
+                .Select(static group => group.Select(static x => x.item).ToList())
                 .ToList();
         }
 
@@ -296,22 +300,19 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                 try
                 {
-                    var secretValueSet = await Client.BatchGetSecretValueAsync(request, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (secretValueSet.Errors?.Any() == true)
+                    var secretValueSet = default(BatchGetSecretValueResponse);
+                    do
                     {
-                        var set = HandleBatchErrors(secretValueSet);
-                        throw new AggregateException(set);
-                    }
-                    while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken))
-                    {
-                        resultSet.Add(secretValueSet);
-                        request.NextToken = secretValueSet.NextToken;
+                        request.NextToken = secretValueSet?.NextToken;
                         secretValueSet = await Client.BatchGetSecretValueAsync(request, cancellationToken)
                             .ConfigureAwait(false);
-                    }
-
-                    resultSet.Add(secretValueSet);
+                        if (secretValueSet.Errors?.Any() == true)
+                        {
+                            var set = HandleBatchErrors(secretValueSet);
+                            throw new AggregateException(set);
+                        }
+                        resultSet.Add(secretValueSet);
+                    } while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken));
                     
                     foreach (var (secretValue, secret) in
                              resultSet.SelectMany(a => a.SecretValues.Select(b => b))
