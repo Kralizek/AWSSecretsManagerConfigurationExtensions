@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.SecretsManager;
@@ -9,7 +8,6 @@ using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using Amazon.Runtime;
-using Amazon.SecretsManager.Model.Internal.MarshallTransformations;
 
 
 namespace Kralizek.Extensions.Configuration.Internal
