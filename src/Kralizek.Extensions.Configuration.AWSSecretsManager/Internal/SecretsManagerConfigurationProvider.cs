@@ -173,7 +173,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         private void SetData(IEnumerable<(string, string)> values, bool triggerReload)
         {
-            Data = values.ToDictionary(x => x.Item1, x => x.Item2, StringComparer.InvariantCultureIgnoreCase);
+            Data = values.ToDictionary<(string, string), string, string?>(x => x.Item1, x => x.Item2, StringComparer.InvariantCultureIgnoreCase);
             if (triggerReload)
             {
                 OnReload();
