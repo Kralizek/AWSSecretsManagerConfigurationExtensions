@@ -1,10 +1,15 @@
 using System;
-using NUnit.Framework;
-using Microsoft.Extensions.Configuration;
-using Moq;
+
 using Amazon;
-using Kralizek.Extensions.Configuration.Internal;
 using Amazon.Runtime;
+
+using Kralizek.Extensions.Configuration.Internal;
+
+using Microsoft.Extensions.Configuration;
+
+using Moq;
+
+using NUnit.Framework;
 
 namespace Tests
 {

@@ -1,16 +1,23 @@
-using Amazon.SecretsManager;
-using Amazon.SecretsManager.Model;
-using AutoFixture;
-using AutoFixture.NUnit3;
-using Kralizek.Extensions.Configuration.Internal;
-using Moq;
-using Newtonsoft.Json;
-using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Amazon.SecretsManager;
+using Amazon.SecretsManager.Model;
+
+using AutoFixture;
+using AutoFixture.NUnit3;
+
+using Kralizek.Extensions.Configuration.Internal;
+
+using Moq;
+
+using Newtonsoft.Json;
+
+using NUnit.Framework;
+
 using Tests.Types;
 
 namespace Tests.Internal
@@ -118,16 +125,16 @@ namespace Tests.Internal
 
             Assert.That(sut.Get(testEntry.Name), Is.Null);
         }
-        
+
         [Test, CustomAutoData]
         public void Secrets_can_be_listed_explicitly_and_not_searched([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
         {
             const string secretKey = "KEY";
             var firstSecretArn = listSecretsResponse.SecretList.Select(x => x.ARN).First();
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => x.SecretId.Equals(firstSecretArn)), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
-            
+
             options.SecretFilter = entry => true;
-            options.AcceptedSecretArns = new List<string> {firstSecretArn};
+            options.AcceptedSecretArns = new List<string> { firstSecretArn };
             options.KeyGenerator = (entry, key) => secretKey;
 
             sut.Load();
@@ -149,7 +156,7 @@ namespace Tests.Internal
             Assert.DoesNotThrow(sut.Load);
 
             Mock.Get(secretsManager).Verify(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(x => !x.SecretId.Equals(getSecretValueResponse.ARN)), It.IsAny<CancellationToken>()), Times.Never);
-            
+
             Assert.That(sut.Get(getSecretValueResponse.Name), Is.EqualTo(getSecretValueResponse.SecretString));
         }
 
@@ -241,7 +248,7 @@ namespace Tests.Internal
             Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
             Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
         }
-        
+
         [Test, CustomAutoData]
         public async Task Should_reload_when_forceReload_called([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueInitialResponse, GetSecretValueResponse getSecretValueUpdatedResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object> changeCallback, object changeCallbackState)
         {
@@ -258,11 +265,11 @@ namespace Tests.Internal
 
 
             await sut.ForceReloadAsync(CancellationToken.None);
-            
+
             Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
             Assert.That(sut.Get(testEntry.Name), Is.EqualTo(getSecretValueUpdatedResponse.SecretString));
         }
-        
+
         [Test]
         [Description("Reproduces issue 48")]
         [CustomInlineAutoData("{THIS IS NOT AN OBJECT}")]

@@ -1,12 +1,15 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text;
-using AutoFixture.NUnit3;
+
+using Amazon.SecretsManager.Model;
+
 using AutoFixture;
 using AutoFixture.AutoMoq;
+using AutoFixture.NUnit3;
+
 using Kralizek.Extensions.Configuration.Internal;
-using Amazon.SecretsManager.Model;
-using System;
-using System.Collections.Generic;
 
 namespace Tests
 {

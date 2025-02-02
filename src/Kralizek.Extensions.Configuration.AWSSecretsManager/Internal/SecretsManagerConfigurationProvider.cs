@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Amazon.Runtime;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
+
 using Microsoft.Extensions.Configuration;
-using System.Text.Json;
-using Amazon.Runtime;
 
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -46,9 +48,9 @@ namespace Kralizek.Extensions.Configuration.Internal
                 true => await FetchConfigurationBatchAsync(default).ConfigureAwait(false),
                 _ => await FetchConfigurationAsync(default).ConfigureAwait(false)
             };
-            
+
             SetData(_loadedValues, triggerReload: false);
-            
+
 
             if (Options.PollingInterval.HasValue)
             {
@@ -81,7 +83,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 true => await FetchConfigurationBatchAsync(cancellationToken).ConfigureAwait(false),
                 _ => await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false)
             };
-            
+
             if (!oldValues.SetEquals(newValues))
             {
                 _loadedValues = newValues;
@@ -125,61 +127,61 @@ namespace Kralizek.Extensions.Configuration.Internal
             switch (element.ValueKind)
             {
                 case JsonValueKind.Array:
-                {
-                    var currentIndex = 0;
-                    foreach (var el in element.EnumerateArray())
                     {
-                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{currentIndex}";
-                        foreach (var (key, value) in ExtractValues(el, secretKey))
+                        var currentIndex = 0;
+                        foreach (var el in element.EnumerateArray())
                         {
-                            yield return (key, value);
+                            var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{currentIndex}";
+                            foreach (var (key, value) in ExtractValues(el, secretKey))
+                            {
+                                yield return (key, value);
+                            }
+                            currentIndex++;
                         }
-                        currentIndex++;
+                        break;
                     }
-                    break;
-                }
                 case JsonValueKind.Number:
-                {
-                    var value = element.GetRawText();
-                    yield return (prefix, value);
-                    break;
-                }
-                case JsonValueKind.String:
-                {
-                    var value = element.GetString() ?? "";
-                    yield return (prefix, value);
-                    break;
-                }
-                case JsonValueKind.True:
-                {
-                    var value = element.GetBoolean();
-                    yield return (prefix, value.ToString());
-                    break;
-                }
-                case JsonValueKind.False:
-                {
-                    var value = element.GetBoolean();
-                    yield return (prefix, value.ToString());
-                    break;
-                }
-                case JsonValueKind.Object:
-                {
-                    foreach (var property in element.EnumerateObject())
                     {
-                        var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{property.Name}";
-                        foreach (var (key, value) in ExtractValues(property.Value, secretKey))
-                        {
-                            yield return (key, value);
-                        }
+                        var value = element.GetRawText();
+                        yield return (prefix, value);
+                        break;
                     }
-                    break;
-                }
+                case JsonValueKind.String:
+                    {
+                        var value = element.GetString() ?? "";
+                        yield return (prefix, value);
+                        break;
+                    }
+                case JsonValueKind.True:
+                    {
+                        var value = element.GetBoolean();
+                        yield return (prefix, value.ToString());
+                        break;
+                    }
+                case JsonValueKind.False:
+                    {
+                        var value = element.GetBoolean();
+                        yield return (prefix, value.ToString());
+                        break;
+                    }
+                case JsonValueKind.Object:
+                    {
+                        foreach (var property in element.EnumerateObject())
+                        {
+                            var secretKey = $"{prefix}{ConfigurationPath.KeyDelimiter}{property.Name}";
+                            foreach (var (key, value) in ExtractValues(property.Value, secretKey))
+                            {
+                                yield return (key, value);
+                            }
+                        }
+                        break;
+                    }
                 case JsonValueKind.Undefined:
                 case JsonValueKind.Null:
                 default:
-                {
-                    throw new FormatException("unsupported json token");
-                }
+                    {
+                        throw new FormatException("unsupported json token");
+                    }
             }
         }
 
@@ -198,7 +200,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             if (Options.AcceptedSecretArns.Count > 0)
             {
-                return Options.AcceptedSecretArns.Select(x => new SecretListEntry{ARN = x, Name = x}).ToList();
+                return Options.AcceptedSecretArns.Select(x => new SecretListEntry { ARN = x, Name = x }).ToList();
             }
 
             var result = new List<SecretListEntry>();
@@ -207,7 +209,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 var nextToken = response?.NextToken;
 
-                var request = new ListSecretsRequest {NextToken = nextToken, Filters = Options.ListSecretsFilters};
+                var request = new ListSecretsRequest { NextToken = nextToken, Filters = Options.ListSecretsFilters };
 
                 response = await Client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
 
@@ -269,7 +271,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
             return configuration;
         }
-        
+
         private static List<List<SecretListEntry>> ChunkList(IReadOnlyList<SecretListEntry> source,
             Func<SecretListEntry, bool> optionsSecretFilter, int chunkSize)
         {
@@ -311,7 +313,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                         }
                         resultSet.Add(secretValueSet);
                     } while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken));
-                    
+
                     foreach (var (secretValue, secret) in
                              resultSet.SelectMany(a => a.SecretValues.Select(b => b))
                                  .Join(secretSet, a => a.ARN, b => b.ARN, (a, b) => (a, b)))

@@ -1,4 +1,5 @@
 ﻿using System;
+
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
@@ -15,7 +16,7 @@ if (chain.TryGetProfile("MyProfile", out var profile))
     var credentials = profile.GetAWSCredentials(profile.CredentialProfileStore);
     builder.AddSecretsManager(credentials, profile.Region);
 }
-            
+
 var configuration = builder.Build();
 
 Console.WriteLine("Hello World!");

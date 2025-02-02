@@ -1,7 +1,9 @@
 using System;
+
 using Amazon;
 using Amazon.Runtime;
 using Amazon.SecretsManager.Model;
+
 using Kralizek.Extensions.Configuration.Internal;
 // ReSharper disable CheckNamespace
 

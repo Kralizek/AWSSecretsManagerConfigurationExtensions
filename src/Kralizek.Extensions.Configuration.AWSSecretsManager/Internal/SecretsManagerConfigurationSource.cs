@@ -1,7 +1,9 @@
 using System;
+
 using Amazon;
 using Amazon.Runtime;
 using Amazon.SecretsManager;
+
 using Microsoft.Extensions.Configuration;
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -16,14 +18,14 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         public SecretsManagerConfigurationProviderOptions Options { get; }
 
-        public AWSCredentials? Credentials {get; }
+        public AWSCredentials? Credentials { get; }
 
         public RegionEndpoint? Region { get; set; }
 
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
             var client = CreateClient();
-            
+
             return new SecretsManagerConfigurationProvider(client, Options);
         }
 

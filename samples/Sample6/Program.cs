@@ -1,6 +1,8 @@
 ﻿using System;
+
 using Amazon;
 using Amazon.SecretsManager;
+
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();

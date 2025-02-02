@@ -1,9 +1,14 @@
 using System;
+
 using Amazon.Runtime;
 using Amazon.SecretsManager;
+
 using Kralizek.Extensions.Configuration.Internal;
+
 using Microsoft.Extensions.Configuration;
+
 using Moq;
+
 using NUnit.Framework;
 
 namespace Tests.Internal

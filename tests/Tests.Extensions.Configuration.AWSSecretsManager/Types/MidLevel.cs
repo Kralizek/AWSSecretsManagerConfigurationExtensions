@@ -1,4 +1,5 @@
-﻿namespace Tests.Types {
+﻿namespace Tests.Types
+{
     public class MidLevel
     {
         public Leaf Leaf { get; set; }

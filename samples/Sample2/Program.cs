@@ -1,5 +1,7 @@
 ﻿using System;
+
 using Amazon;
+
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 
@@ -25,7 +26,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// </example>
         /// </summary>
         public List<string> AcceptedSecretArns { get; set; } = new();
-        
+
         /// <summary>
         /// A function that determines whether or not a given secret should be retrieved.
         /// </summary>
@@ -71,7 +72,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// </code>
         /// </example>
         public Action<GetSecretValueRequest, SecretValueContext> ConfigureSecretValueRequest { get; set; } = (_, _) => { };
-        
+
         /// <summary>
         /// Defines a function that can be used to customize the <see cref="BatchGetSecretValueRequest"/> before it is sent.
         /// This Option is only used if <see cref="UseBatchFetch"/> is set to true.

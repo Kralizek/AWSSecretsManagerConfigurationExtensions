@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+
 using NUnit.Framework;
 
 namespace Tests
