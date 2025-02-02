@@ -63,6 +63,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         /// <summary>
         /// Defines a function that can be used to customize the <see cref="GetSecretValueRequest"/> before it is sent.
+        /// This Option is only used if <see cref="UseBatchFetch"/> is set to false.
         /// </summary>
         /// <example>
         /// <code>
@@ -70,6 +71,17 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// </code>
         /// </example>
         public Action<GetSecretValueRequest, SecretValueContext> ConfigureSecretValueRequest { get; set; } = (_, _) => { };
+        
+        /// <summary>
+        /// Defines a function that can be used to customize the <see cref="BatchGetSecretValueRequest"/> before it is sent.
+        /// This Option is only used if <see cref="UseBatchFetch"/> is set to true.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT";
+        /// </code>
+        /// </example>
+        public Action<BatchGetSecretValueRequest, List<SecretValueContext>> ConfigureBatchSecretValueRequest { get; set; } = (_, _) => { };
 
         /// <summary>
         /// A function that can be used to configure the <see cref="AmazonSecretsManagerClient"/>
@@ -102,5 +114,14 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// </code>
         /// </example>
         public TimeSpan? PollingInterval { get; set; }
+
+        /// <summary>
+        /// If True, Requests will use BatchGetSecretValue to retrieve up to 20 secrets at a time.
+        /// If set to true, <see cref="ConfigureSecretValueRequest"/> will no longer work,
+        /// you must instead use <see cref="ConfigureBatchSecretValueRequest"/>
+        /// <para/>
+        /// Note: You must make sure secretsmanager:BatchGetSecretValue is allowed for the resource!
+        /// </summary>
+        public bool UseBatchFetch { get; set; }
     }
 }
