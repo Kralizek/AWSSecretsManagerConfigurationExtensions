@@ -228,6 +228,55 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
+        public void Should_skip_on_missing_secret_value_if_configured([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).Throws(new ResourceNotFoundException("Oops"));
+
+            options.IgnoreMissingValues = true;
+
+            Assert.That(sut.Load, Throws.Nothing);
+        }
+
+        [Test, CustomAutoData]
+        public void Should_throw_on_batch_missing_secret_values([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options,SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+
+            var batchGetSecretValueResponse = fixture.Build<BatchGetSecretValueResponse>()
+                                                .With(p => p.SecretValues)
+                                                .With(p => p.Errors, new List<APIErrorType> { new APIErrorType { ErrorCode = nameof(ResourceNotFoundException) } })
+                                                .Without(p => p.NextToken)
+                                                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(batchGetSecretValueResponse);
+
+            options.UseBatchFetch = true;
+
+            Assert.That(sut.Load, Throws.TypeOf<AggregateException>());
+        }
+
+        [Test, CustomAutoData]
+        public void Should_skip_on_missing_batch_secret_values_if_configured([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+
+            var batchGetSecretValueResponse = fixture.Build<BatchGetSecretValueResponse>()
+                                                .With(p => p.SecretValues)
+                                                .With(p => p.Errors, new List<APIErrorType> { new APIErrorType { ErrorCode = nameof(ResourceNotFoundException) } })
+                                                .Without(p => p.NextToken)
+                                                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(batchGetSecretValueResponse);
+
+            options.UseBatchFetch = true;
+            options.IgnoreMissingValues = true;
+
+            Assert.That(sut.Load, Throws.Nothing);
+        }
+
+        [Test, CustomAutoData]
         public void Should_poll_and_reload_when_secrets_changed([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueInitialResponse, GetSecretValueResponse getSecretValueUpdatedResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object> changeCallback, object changeCallbackState)
         {
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);

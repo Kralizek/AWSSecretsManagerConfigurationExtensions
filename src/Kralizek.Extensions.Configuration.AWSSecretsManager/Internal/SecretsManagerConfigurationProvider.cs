@@ -230,7 +230,23 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                     var request = new GetSecretValueRequest { SecretId = secret.ARN };
                     Options.ConfigureSecretValueRequest?.Invoke(request, new SecretValueContext(secret));
-                    var secretValue = await Client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
+                    GetSecretValueResponse? secretValue;
+
+                    try
+                    {
+                        secretValue = await Client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (ResourceNotFoundException)
+                    {
+                        if (Options.IgnoreMissingValues)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
 
                     var secretEntry = Options.AcceptedSecretArns.Count > 0
                         ? new SecretListEntry
@@ -309,7 +325,11 @@ namespace Kralizek.Extensions.Configuration.Internal
                         if (secretValueSet.Errors?.Any() == true)
                         {
                             var set = HandleBatchErrors(secretValueSet);
-                            throw new AggregateException(set);
+
+                            if (!Options.IgnoreMissingValues || set.Any(e => e is not MissingSecretValueException))
+                            {
+                                throw new AggregateException(set);
+                            }
                         }
                         resultSet.Add(secretValueSet);
                     } while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken));

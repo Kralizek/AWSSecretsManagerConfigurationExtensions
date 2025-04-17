@@ -124,5 +124,15 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// Note: You must make sure secretsmanager:BatchGetSecretValue is allowed for the resource!
         /// </summary>
         public bool UseBatchFetch { get; set; }
+
+        /// <summary>
+        /// If true, the provider will ignore missing values and not throw an exception.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// IgnoreMissingValues = true;
+        /// </code>
+        /// </example>
+        public bool IgnoreMissingValues { get; set; }
     }
 }
