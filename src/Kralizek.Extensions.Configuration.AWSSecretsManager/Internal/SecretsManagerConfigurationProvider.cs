@@ -236,16 +236,9 @@ namespace Kralizek.Extensions.Configuration.Internal
                     {
                         secretValue = await Client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
                     }
-                    catch (ResourceNotFoundException)
+                    catch (ResourceNotFoundException) when (Options.IgnoreMissingValues)
                     {
-                        if (Options.IgnoreMissingValues)
-                        {
-                            continue;
-                        }
-                        else
-                        {
-                            throw;
-                        }
+                        continue;
                     }
 
                     var secretEntry = Options.AcceptedSecretArns.Count > 0
