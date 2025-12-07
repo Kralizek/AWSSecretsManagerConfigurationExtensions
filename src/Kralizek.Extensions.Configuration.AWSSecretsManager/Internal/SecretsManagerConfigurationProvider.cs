@@ -327,10 +327,14 @@ namespace Kralizek.Extensions.Configuration.Internal
                         resultSet.Add(secretValueSet);
                     } while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken));
 
-                    foreach (var (secretValue, secret) in
-                             resultSet.SelectMany(a => a.SecretValues.Select(b => b))
-                                 .Join(secretSet, a => a.ARN, b => b.ARN, (a, b) => (a, b)))
+                    foreach (var secretValue in resultSet.SelectMany(a => a.SecretValues))
                     {
+                        var secret = secretSet.FirstOrDefault(s => 
+                            s.ARN.Equals(secretValue.ARN, StringComparison.OrdinalIgnoreCase) ||
+                            secretValue.ARN.EndsWith(s.ARN, StringComparison.OrdinalIgnoreCase) ||
+                            s.ARN.Equals(secretValue.Name, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (secret == null) continue;
 
                         var secretEntry = Options.AcceptedSecretArns.Count > 0
                             ? new SecretListEntry
@@ -363,7 +367,6 @@ namespace Kralizek.Extensions.Configuration.Internal
                             var configurationKey = Options.KeyGenerator(secretEntry, secretName);
                             configuration.Add((configurationKey, secretString));
                         }
-
                     }
                 }
                 catch (ResourceNotFoundException e)

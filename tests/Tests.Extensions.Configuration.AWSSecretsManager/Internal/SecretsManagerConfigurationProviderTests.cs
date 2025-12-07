@@ -356,5 +356,87 @@ namespace Tests.Internal
             Assert.That(sut.Get(testEntry.Name, nameof(RootObject.Mid), nameof(MidLevel.Property)), Is.EqualTo(test.Mid.Property));
             Assert.That(sut.Get(testEntry.Name, nameof(RootObject.Mid), nameof(MidLevel.Leaf), nameof(Leaf.Property)), Is.EqualTo(test.Mid.Leaf.Property));
         }
+
+        [Test, CustomAutoData]
+        public void Batch_fetch_with_accepted_secret_names_should_match_returned_secrets([Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            var secretName = "MyTestSecret";
+            var fullArn = $"arn:aws:secretsmanager:us-east-1:123456789012:secret:{secretName}-AbCdEf";
+            var secretValue = "test-value";
+
+            var batchGetSecretValueResponse = fixture.Build<BatchGetSecretValueResponse>()
+                .With(p => p.SecretValues, new List<SecretValueEntry>
+                {
+                    new SecretValueEntry { ARN = fullArn, Name = secretName, SecretString = secretValue }
+                })
+                .Without(p => p.Errors)
+                .Without(p => p.NextToken)
+                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(batchGetSecretValueResponse);
+
+            options.UseBatchFetch = true;
+            options.AcceptedSecretArns = new List<string> { secretName };
+
+            sut.Load();
+
+            Mock.Get(secretsManager).Verify(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(sut.Get(secretName), Is.EqualTo(secretValue));
+        }
+
+        [Test, CustomAutoData]
+        public void Batch_fetch_with_accepted_partial_arns_should_match_returned_secrets([Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            var secretName = "MyTestSecret";
+            var partialArn = $"{secretName}-AbCdEf";
+            var fullArn = $"arn:aws:secretsmanager:us-east-1:123456789012:secret:{partialArn}";
+            var secretValue = "test-value";
+
+            var batchGetSecretValueResponse = fixture.Build<BatchGetSecretValueResponse>()
+                .With(p => p.SecretValues, new List<SecretValueEntry>
+                {
+                    new SecretValueEntry { ARN = fullArn, Name = secretName, SecretString = secretValue }
+                })
+                .Without(p => p.Errors)
+                .Without(p => p.NextToken)
+                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(batchGetSecretValueResponse);
+
+            options.UseBatchFetch = true;
+            options.AcceptedSecretArns = new List<string> { partialArn };
+
+            sut.Load();
+
+            Mock.Get(secretsManager).Verify(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(sut.Get(secretName), Is.EqualTo(secretValue));
+        }
+
+        [Test, CustomAutoData]
+        public void Batch_fetch_with_accepted_full_arns_should_match_returned_secrets([Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerConfigurationProviderOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture)
+        {
+            var secretName = "MyTestSecret";
+            var fullArn = $"arn:aws:secretsmanager:us-east-1:123456789012:secret:{secretName}-AbCdEf";
+            var secretValue = "test-value";
+
+            var batchGetSecretValueResponse = fixture.Build<BatchGetSecretValueResponse>()
+                .With(p => p.SecretValues, new List<SecretValueEntry>
+                {
+                    new SecretValueEntry { ARN = fullArn, Name = secretName, SecretString = secretValue }
+                })
+                .Without(p => p.Errors)
+                .Without(p => p.NextToken)
+                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(batchGetSecretValueResponse);
+
+            options.UseBatchFetch = true;
+            options.AcceptedSecretArns = new List<string> { fullArn };
+
+            sut.Load();
+
+            Mock.Get(secretsManager).Verify(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(sut.Get(secretName), Is.EqualTo(secretValue));
+        }
     }
 }
