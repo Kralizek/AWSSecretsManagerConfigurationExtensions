@@ -58,6 +58,52 @@ builder.AddSecretsManager(awsOptions, options => { ... });
 builder.AddSecretsManager(client, options => { ... });
 ```
 
+## `CreateClient` and `ConfigureSecretsManagerConfig` hooks removed
+
+The `SecretsManagerConfigurationProviderOptions.CreateClient` factory and `ConfigureSecretsManagerConfig` callback were the 1.x escape hatches for advanced client configuration (custom service URL, timeouts, LocalStack, etc.). Both have been removed in 2.0.
+
+Use the `IAmazonSecretsManager` overload instead to pass a fully-configured client:
+
+```csharp
+// Before — configuring a low-level client property
+builder.AddSecretsManager(options =>
+{
+    options.ConfigureSecretsManagerConfig = config =>
+    {
+        config.ServiceURL = "http://localhost:4566"; // LocalStack
+        config.Timeout = TimeSpan.FromSeconds(5);
+    };
+});
+
+// After — inject a pre-built client
+var config = new AmazonSecretsManagerConfig
+{
+    ServiceURL = "http://localhost:4566",
+    Timeout = TimeSpan.FromSeconds(5)
+};
+var client = new AmazonSecretsManagerClient(credentials, config);
+builder.AddSecretsManager(client, options => { ... });
+```
+
+```csharp
+// Before — providing a custom client factory
+builder.AddSecretsManager(options =>
+{
+    options.CreateClient = () => new MyCustomSecretsManagerClient();
+});
+
+// After — pass the client directly
+builder.AddSecretsManager(new MyCustomSecretsManagerClient(), options => { ... });
+```
+
+Region and credential customization via `AWSOptions` also covers the most common production scenarios:
+
+```csharp
+// appsettings.json: { "AWS": { "Region": "eu-west-1", "Profile": "my-profile" } }
+var awsOptions = builder.Configuration.GetAWSOptions();
+builder.AddSecretsManager(awsOptions, options => { ... });
+```
+
 ## Public namespace for exception and context types
 
 `MissingSecretValueException` and `SecretValueContext` have been moved from the `Kralizek.Extensions.Configuration.Internal` namespace to `Kralizek.Extensions.Configuration`.

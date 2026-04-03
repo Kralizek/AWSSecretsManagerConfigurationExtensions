@@ -51,7 +51,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             SetData(_loadedValues, triggerReload: false);
 
             Log(LogLevel.Debug, SecretsManagerLogEvents.LoadCompleted,
-                "Secrets Manager configuration load completed. {SecretCount} entries loaded.",
+                "Secrets Manager configuration load completed.",
                 props: new Dictionary<string, object?> { ["SecretCount"] = _loadedValues.Count });
 
             if (_options.ReloadInterval.HasValue)
@@ -81,8 +81,8 @@ namespace Kralizek.Extensions.Configuration.Internal
                 catch (Exception ex) when (!(ex is OperationCanceledException))
                 {
                     Log(LogLevel.Error, SecretsManagerLogEvents.ReloadFailed,
-                        "Secrets Manager configuration reload failed: {Message}", ex,
-                        new Dictionary<string, object?> { ["Message"] = ex.Message });
+                        "Secrets Manager configuration reload failed.", ex,
+                        new Dictionary<string, object?> { ["ErrorMessage"] = ex.Message });
                 }
             }
         }
