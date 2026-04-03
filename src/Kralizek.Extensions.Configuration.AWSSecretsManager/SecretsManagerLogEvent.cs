@@ -9,5 +9,6 @@ namespace Kralizek.Extensions.Configuration
         EventId EventId,
         string Message,
         Exception? Exception = null,
-        IReadOnlyDictionary<string, object?>? Properties = null);
+        IReadOnlyDictionary<string, object?>? Properties = null,
+        object?[]? Args = null);
 }

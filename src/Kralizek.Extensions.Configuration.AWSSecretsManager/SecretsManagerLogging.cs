@@ -10,7 +10,7 @@ namespace Kralizek.Extensions.Configuration
             return evt =>
             {
                 using var scope = evt.Properties != null ? logger.BeginScope(evt.Properties) : null;
-                logger.Log(evt.Level, evt.EventId, evt.Exception, evt.Message);
+                logger.Log(evt.Level, evt.EventId, evt.Exception, evt.Message, evt.Args ?? []);
             };
         }
     }

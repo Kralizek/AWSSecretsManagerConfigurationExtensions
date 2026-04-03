@@ -37,8 +37,8 @@ namespace Kralizek.Extensions.Configuration.Internal
         public Task ForceReloadAsync(CancellationToken cancellationToken) => ReloadAsync(cancellationToken);
 
         private void Log(LogLevel level, EventId eventId, string message,
-            Exception? ex = null, IReadOnlyDictionary<string, object?>? props = null)
-            => _options.LogEvent?.Invoke(new SecretsManagerLogEvent(level, eventId, message, ex, props));
+            Exception? ex = null, params object?[] args)
+            => _options.LogEvent?.Invoke(new SecretsManagerLogEvent(level, eventId, message, ex, Args: args));
 
         private async Task LoadAsync()
         {
@@ -51,8 +51,8 @@ namespace Kralizek.Extensions.Configuration.Internal
             SetData(_loadedValues, triggerReload: false);
 
             Log(LogLevel.Debug, SecretsManagerLogEvents.LoadCompleted,
-                "Secrets Manager configuration load completed.",
-                props: new Dictionary<string, object?> { ["SecretCount"] = _loadedValues.Count });
+                "Secrets Manager configuration load completed. {SecretCount} secrets loaded.",
+                args: _loadedValues.Count);
 
             if (_options.ReloadInterval.HasValue)
             {
@@ -81,8 +81,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 catch (Exception ex) when (!(ex is OperationCanceledException))
                 {
                     Log(LogLevel.Error, SecretsManagerLogEvents.ReloadFailed,
-                        "Secrets Manager configuration reload failed.", ex,
-                        new Dictionary<string, object?> { ["ErrorMessage"] = ex.Message });
+                        "Secrets Manager configuration reload failed.", ex);
                 }
             }
         }
@@ -184,15 +183,13 @@ namespace Kralizek.Extensions.Configuration.Internal
                         dict[key] = value;
                     else
                         Log(LogLevel.Debug, SecretsManagerLogEvents.DuplicateKeyResolved,
-                            "Duplicate key resolved (FirstWins); existing value kept.",
-                            props: new Dictionary<string, object?> { ["Key"] = key });
+                            "Duplicate configuration key {Key} resolved (FirstWins); existing value kept.", args: key);
                     break;
                 case DuplicateKeyHandling.LastWins:
                 default:
                     if (dict.ContainsKey(key))
                         Log(LogLevel.Debug, SecretsManagerLogEvents.DuplicateKeyResolved,
-                            "Duplicate key resolved (LastWins); value overwritten.",
-                            props: new Dictionary<string, object?> { ["Key"] = key });
+                            "Duplicate configuration key {Key} resolved (LastWins); value overwritten.", args: key);
                     dict[key] = value;
                     break;
             }
@@ -230,8 +227,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                     if (!_options.SecretFilter(secret))
                     {
                         Log(LogLevel.Debug, SecretsManagerLogEvents.SecretSkipped,
-                            "Secret skipped by filter.",
-                            props: new Dictionary<string, object?> { ["SecretName"] = secret.Name });
+                            "Secret {SecretName} skipped by filter.", args: secret.Name);
                         continue;
                     }
 
@@ -246,8 +242,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                     catch (ResourceNotFoundException) when (_options.IgnoreMissingValues)
                     {
                         Log(LogLevel.Debug, SecretsManagerLogEvents.MissingSecretIgnored,
-                            "Missing secret ignored.",
-                            props: new Dictionary<string, object?> { ["SecretName"] = secret.Name });
+                            "Missing secret {SecretName} ignored.", args: secret.Name);
                         continue;
                     }
 
@@ -272,8 +267,8 @@ namespace Kralizek.Extensions.Configuration.Internal
                         ApplyEntry(dict, configKey, secretString);
                     }
 
-                    Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret loaded.",
-                        props: new Dictionary<string, object?> { ["SecretName"] = secretEntry.Name });
+                    Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded.",
+                        args: secretEntry.Name);
                 }
                 catch (ResourceNotFoundException e)
                 {
@@ -325,9 +320,9 @@ namespace Kralizek.Extensions.Configuration.Internal
                             if (!_options.IgnoreMissingValues || errors.Any(e => e is not MissingSecretValueException))
                                 throw new AggregateException(errors);
 
-                            foreach (var _ in errors.OfType<MissingSecretValueException>())
+                            foreach (var missingEx in errors.OfType<MissingSecretValueException>())
                                 Log(LogLevel.Debug, SecretsManagerLogEvents.MissingSecretIgnored,
-                                    "Missing secret ignored (batch).");
+                                    "Missing secret {SecretName} ignored (batch).", args: missingEx.SecretName);
                         }
 
                         foreach (var (secretValue, secret) in secretValueSet.SecretValues
@@ -354,8 +349,8 @@ namespace Kralizek.Extensions.Configuration.Internal
                                 ApplyEntry(dict, configKey, secretString);
                             }
 
-                            Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret loaded (batch).",
-                                props: new Dictionary<string, object?> { ["SecretName"] = secretEntry.Name });
+                            Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded (batch).",
+                                args: secretEntry.Name);
                         }
                     } while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken));
                 }
