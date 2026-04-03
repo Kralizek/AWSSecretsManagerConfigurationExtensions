@@ -1,54 +1,45 @@
 using System;
-
-using Amazon;
-using Amazon.Runtime;
+using Amazon.Extensions.NETCore.Setup;
 using Amazon.SecretsManager;
-
 using Microsoft.Extensions.Configuration;
 
 namespace Kralizek.Extensions.Configuration.Internal
 {
-    public class SecretsManagerConfigurationSource : IConfigurationSource
+    internal class SecretsManagerConfigurationSource : IConfigurationSource
     {
-        public SecretsManagerConfigurationSource(AWSCredentials? credentials = null, SecretsManagerConfigurationProviderOptions? options = null)
+        private readonly IAmazonSecretsManager? _client;
+        private readonly AWSOptions? _awsOptions;
+        private readonly SecretsManagerOptions _options;
+
+        public SecretsManagerConfigurationSource(SecretsManagerOptions options)
         {
-            Credentials = credentials;
-            Options = options ?? new SecretsManagerConfigurationProviderOptions();
+            _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
-        public SecretsManagerConfigurationProviderOptions Options { get; }
+        public SecretsManagerConfigurationSource(AWSOptions awsOptions, SecretsManagerOptions options)
+        {
+            _awsOptions = awsOptions ?? throw new ArgumentNullException(nameof(awsOptions));
+            _options    = options    ?? throw new ArgumentNullException(nameof(options));
+        }
 
-        public AWSCredentials? Credentials { get; }
-
-        public RegionEndpoint? Region { get; set; }
+        public SecretsManagerConfigurationSource(IAmazonSecretsManager client, SecretsManagerOptions options)
+        {
+            _client  = client  ?? throw new ArgumentNullException(nameof(client));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
+        }
 
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
-            var client = CreateClient();
-
-            return new SecretsManagerConfigurationProvider(client, Options);
+            var client = _client ?? CreateClient();
+            return new SecretsManagerConfigurationProvider(client, _options);
         }
 
         private IAmazonSecretsManager CreateClient()
         {
-            if (Options.CreateClient != null)
-            {
-                return Options.CreateClient();
-            }
+            if (_awsOptions != null)
+                return _awsOptions.CreateServiceClient<IAmazonSecretsManager>();
 
-            var clientConfig = new AmazonSecretsManagerConfig
-            {
-                RegionEndpoint = Region
-            };
-
-            Options.ConfigureSecretsManagerConfig(clientConfig);
-
-            return Credentials switch
-            {
-                null => new AmazonSecretsManagerClient(clientConfig),
-                _ => new AmazonSecretsManagerClient(Credentials, clientConfig)
-            };
+            return new AmazonSecretsManagerClient();
         }
     }
-
 }

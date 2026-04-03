@@ -1,35 +1,44 @@
 using System;
-
-using Amazon;
-using Amazon.Runtime;
-using Amazon.SecretsManager.Model;
-
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.SecretsManager;
+using Kralizek.Extensions.Configuration;
 using Kralizek.Extensions.Configuration.Internal;
-// ReSharper disable CheckNamespace
 
+// ReSharper disable CheckNamespace
 namespace Microsoft.Extensions.Configuration
 {
     public static class SecretsManagerExtensions
     {
-        public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder,
-            AWSCredentials? credentials = null,
-            RegionEndpoint? region = null,
-            Action<SecretsManagerConfigurationProviderOptions>? configurator = null)
+        public static IConfigurationBuilder AddSecretsManager(
+            this IConfigurationBuilder builder,
+            Action<SecretsManagerOptions>? configure = null)
         {
-            var options = new SecretsManagerConfigurationProviderOptions();
+            var options = new SecretsManagerOptions();
+            configure?.Invoke(options);
+            builder.Add(new SecretsManagerConfigurationSource(options));
+            return builder;
+        }
 
-            configurator?.Invoke(options);
+        public static IConfigurationBuilder AddSecretsManager(
+            this IConfigurationBuilder builder,
+            AWSOptions awsOptions,
+            Action<SecretsManagerOptions>? configure = null)
+        {
+            var options = new SecretsManagerOptions();
+            configure?.Invoke(options);
+            builder.Add(new SecretsManagerConfigurationSource(awsOptions, options));
+            return builder;
+        }
 
-            var source = new SecretsManagerConfigurationSource(credentials, options);
-
-            if (region is not null)
-            {
-                source.Region = region;
-            }
-
-            configurationBuilder.Add(source);
-
-            return configurationBuilder;
+        public static IConfigurationBuilder AddSecretsManager(
+            this IConfigurationBuilder builder,
+            IAmazonSecretsManager client,
+            Action<SecretsManagerOptions>? configure = null)
+        {
+            var options = new SecretsManagerOptions();
+            configure?.Invoke(options);
+            builder.Add(new SecretsManagerConfigurationSource(client, options));
+            return builder;
         }
     }
 }

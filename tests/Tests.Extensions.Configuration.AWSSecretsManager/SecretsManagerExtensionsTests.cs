@@ -1,14 +1,9 @@
 using System;
-
-using Amazon;
-using Amazon.Runtime;
-
-using Kralizek.Extensions.Configuration.Internal;
-
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.SecretsManager;
+using Kralizek.Extensions.Configuration;
 using Microsoft.Extensions.Configuration;
-
 using Moq;
-
 using NUnit.Framework;
 
 namespace Tests
@@ -17,65 +12,57 @@ namespace Tests
     [TestOf(typeof(SecretsManagerExtensions))]
     public class SecretsManagerExtensionsTests
     {
-        private Mock<IConfigurationBuilder> configurationBuilder;
+        private Mock<IConfigurationBuilder> _builder;
 
         [SetUp]
-        public void Initialize()
+        public void Initialize() => _builder = new Mock<IConfigurationBuilder>();
+
+        [Test]
+        public void AddSecretsManager_no_args_adds_source()
         {
-            configurationBuilder = new Mock<IConfigurationBuilder>();
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object);
+            _builder.Verify(b => b.Add(It.IsAny<IConfigurationSource>()));
         }
 
         [Test]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_no_parameters()
+        public void AddSecretsManager_with_configure_invokes_delegate()
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
-
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object);
-
-            configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
+            var invoked = false;
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object, opts => { invoked = true; });
+            _builder.Verify(b => b.Add(It.IsAny<IConfigurationSource>()));
+            Assert.That(invoked, Is.True);
         }
 
         [Test, CustomAutoData]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_region(RegionEndpoint region)
+        public void AddSecretsManager_with_AWSOptions_adds_source(AWSOptions awsOptions)
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
-
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, region: region);
-
-            configurationBuilder.Verify(m => m.Add(It.Is<SecretsManagerConfigurationSource>(s => s.Region == region)));
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object, awsOptions);
+            _builder.Verify(b => b.Add(It.IsAny<IConfigurationSource>()));
         }
 
         [Test, CustomAutoData]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_optionConfigurator(Action<SecretsManagerConfigurationProviderOptions> optionConfigurator)
+        public void AddSecretsManager_with_AWSOptions_configure_invokes_delegate(AWSOptions awsOptions)
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
-
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, configurator: optionConfigurator);
-
-            configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
-
-            Mock.Get(optionConfigurator).Verify(p => p(It.IsAny<SecretsManagerConfigurationProviderOptions>()), Times.Once);
+            var invoked = false;
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object, awsOptions, opts => { invoked = true; });
+            _builder.Verify(b => b.Add(It.IsAny<IConfigurationSource>()));
+            Assert.That(invoked, Is.True);
         }
 
         [Test, CustomAutoData]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_credentials(AWSCredentials credentials)
+        public void AddSecretsManager_with_client_adds_source(IAmazonSecretsManager client)
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
-
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, credentials);
-
-            configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object, client);
+            _builder.Verify(b => b.Add(It.IsAny<IConfigurationSource>()));
         }
 
         [Test, CustomAutoData]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_credentials_and_region(AWSCredentials credentials, RegionEndpoint region)
+        public void AddSecretsManager_with_client_configure_invokes_delegate(IAmazonSecretsManager client)
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
-
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, credentials, region);
-
-            configurationBuilder.Verify(m => m.Add(It.Is<SecretsManagerConfigurationSource>(s => s.Region == region)));
+            var invoked = false;
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object, client, opts => { invoked = true; });
+            _builder.Verify(b => b.Add(It.IsAny<IConfigurationSource>()));
+            Assert.That(invoked, Is.True);
         }
-
     }
 }

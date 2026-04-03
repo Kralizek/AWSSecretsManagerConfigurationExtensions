@@ -1,28 +1,12 @@
-﻿using System;
-using System.Linq;
-
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
 
-/*
-    Uses default credentials
-    Uses default region
-    Accepts only a fixed set of secrets, by their ARN
-*/
-
-var acceptedARNs = new[]
+builder.AddSecretsManager(options =>
 {
-    "MySecretFullARN-abcxyz",
-    "MySecretPartialARN",
-    "MySecretUniqueName"
-};
-
-builder.AddSecretsManager(configurator: options =>
-{
-    options.AcceptedSecretArns.AddRange(acceptedARNs);
+    options.SecretIds.Add("MySecretFullARN-abcxyz");
+    options.SecretIds.Add("MySecretPartialARN");
+    options.SecretIds.Add("MySecretUniqueName");
 });
 
 var configuration = builder.Build();
-
-Console.WriteLine("Hello World!");

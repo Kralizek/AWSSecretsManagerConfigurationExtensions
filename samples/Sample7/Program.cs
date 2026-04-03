@@ -1,20 +1,18 @@
-﻿using System;
-
+using Kralizek.Extensions.Configuration;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+
+using var bootstrapLoggerFactory = LoggerFactory.Create(logging =>
+{
+    logging.AddConsole();
+});
 
 var builder = new ConfigurationBuilder();
 
-/*
-    Uses default credentials
-    Uses default region
-    Uses options to customize the GetSecretValueRequest (e.g. specify VersionStage)
-*/
-
-builder.AddSecretsManager(configurator: options =>
+builder.AddSecretsManager(options =>
 {
-    options.ConfigureSecretValueRequest = (request, context) => request.VersionStage = "AWSCURRENT";
+    options.UseBootstrapLogging(bootstrapLoggerFactory);
+    options.SecretIds.Add("my-app/prod");
 });
 
 var configuration = builder.Build();
-
-Console.WriteLine("Hello World!");

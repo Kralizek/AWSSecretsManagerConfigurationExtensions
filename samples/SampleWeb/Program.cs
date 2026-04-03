@@ -1,6 +1,11 @@
+using Kralizek.Extensions.Configuration;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddSecretsManager(configurator: options => options.PollingInterval = TimeSpan.FromSeconds(10));
+builder.Configuration.AddSecretsManager(options =>
+{
+    options.ReloadInterval = TimeSpan.FromSeconds(10);
+});
 
 var app = builder.Build();
 
