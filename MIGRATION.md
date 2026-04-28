@@ -137,9 +137,11 @@ using Kralizek.Extensions.Configuration;
 
 The package no longer depends on Newtonsoft.Json. JSON parsing is now done with `System.Text.Json`.
 
-## `DuplicateKeyHandling` enum added
+## `DuplicateKeyHandling` enum added (behavior change)
 
-A new `DuplicateKeyHandling` enum controls what happens when two secrets produce the same configuration key. The default is `LastWins` (matching v1.x behaviour).
+`DuplicateKeyHandling` is new in 2.0. It controls what happens when two secrets produce the same configuration key.
+
+In 1.x there was no explicit policy: duplicate keys could cause unpredictable results or failures depending on load order. In 2.0 the default is `LastWins`, meaning the last secret loaded silently wins. This is an intentional behavior change; use `Throw` if you want to surface conflicts explicitly.
 
 ```csharp
 options.DuplicateKeyHandling = DuplicateKeyHandling.LastWins;  // default
