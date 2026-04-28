@@ -492,5 +492,46 @@ namespace Tests.Internal
 
             Assert.That(sut.Get(duplicateKey), Is.EqualTo("last_value"));
         }
+
+        [Test, CustomAutoData]
+        [Description("Regression: explicit SecretId loading must root JSON keys at the actual secret Name returned by Secrets Manager, not the requested ARN/id")]
+        public void Explicit_secretId_with_json_flattening_roots_keys_at_secret_name_not_arn(
+            [Frozen] IAmazonSecretsManager secretsManager,
+            IFixture fixture)
+        {
+            const string secretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:App-Production-Service-Settings-Nested-Section-AbCdEf";
+            const string secretName = "/App/Production/Service/Settings/Nested/Section";
+            const string secretJson = """{"Property":"value","Nested":{"Enabled":true}}""";
+            const string pathPrefix = "/App/Production/Service/Settings/";
+
+            var getSecretValueResponse = new GetSecretValueResponse
+            {
+                ARN = secretArn,
+                Name = secretName,
+                SecretString = secretJson
+            };
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(
+                    It.Is<GetSecretValueRequest>(r => r.SecretId == secretArn),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(getSecretValueResponse);
+
+            var options = new SecretsManagerOptions
+            {
+                KeyGenerator = (_, key) =>
+                {
+                    var stripped = key.StartsWith(pathPrefix) ? key.Substring(pathPrefix.Length) : key;
+                    return stripped.Replace("/", ":");
+                }
+            };
+            options.SecretIds.Add(secretArn);
+
+            var sut = new SecretsManagerConfigurationProvider(secretsManager, options);
+            sut.Load();
+
+            Assert.That(sut.Get("Nested:Section:Property"), Is.EqualTo("value"));
+            Assert.That(sut.Get("Nested:Section:Nested:Enabled"), Is.EqualTo("True"));
+        }
     }
 }
