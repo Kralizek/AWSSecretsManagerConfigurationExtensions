@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release -warnaserror
+
+      - name: Test
+        run: dotnet test --no-build -c Release
+
+      - name: Pack
+        run: dotnet pack --no-restore -c Release -o ./artifacts
+
+      - name: List packages
+        run: ls -la ./artifacts
+
+      - name: NuGet Login
+        if: github.event_name == 'release'
+        id: nuget-login
+        uses: nuget/login@v1
+        with:
+          user: Kralizek       
+
+      - name: Publish to NuGet
+        if: github.event_name == 'release'
+        run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Add to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            ./artifacts/*.nupkg

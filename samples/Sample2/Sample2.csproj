@@ -4,10 +4,14 @@
     <ProjectReference Include="..\..\src\Kralizek.Extensions.Configuration.AWSSecretsManager\Kralizek.Extensions.Configuration.AWSSecretsManager.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="[4.0.3,5)" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
 </Project>

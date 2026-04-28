@@ -1,14 +1,10 @@
 using System;
-
-using Amazon;
-using Amazon.Runtime;
-
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.SecretsManager;
+using Kralizek.Extensions.Configuration;
 using Kralizek.Extensions.Configuration.Internal;
-
 using Microsoft.Extensions.Configuration;
-
 using Moq;
-
 using NUnit.Framework;
 
 namespace Tests
@@ -17,65 +13,73 @@ namespace Tests
     [TestOf(typeof(SecretsManagerExtensions))]
     public class SecretsManagerExtensionsTests
     {
-        private Mock<IConfigurationBuilder> configurationBuilder;
+        private Mock<IConfigurationBuilder> _builder = null!;
+        private SecretsManagerConfigurationSource? _capturedSource;
 
         [SetUp]
         public void Initialize()
         {
-            configurationBuilder = new Mock<IConfigurationBuilder>();
+            _capturedSource = null;
+            _builder = new Mock<IConfigurationBuilder>();
+            _builder.Setup(b => b.Add(It.IsAny<IConfigurationSource>()))
+                .Callback<IConfigurationSource>(s => _capturedSource = s as SecretsManagerConfigurationSource);
         }
 
         [Test]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_no_parameters()
+        public void AddSecretsManager_no_args_adds_SecretsManagerConfigurationSource()
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object);
+            Assert.That(_capturedSource, Is.Not.Null);
+        }
 
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object);
+        [Test]
+        public void AddSecretsManager_with_configure_applies_options_to_source()
+        {
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object,
+                opts => opts.ReloadInterval = TimeSpan.FromMinutes(1));
 
-            configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
+            Assert.That(_capturedSource, Is.Not.Null);
+            Assert.That(_capturedSource!.Options.ReloadInterval, Is.EqualTo(TimeSpan.FromMinutes(1)));
         }
 
         [Test, CustomAutoData]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_region(RegionEndpoint region)
+        public void AddSecretsManager_with_AWSOptions_wires_awsOptions_into_source(AWSOptions awsOptions)
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object, awsOptions);
 
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, region: region);
-
-            configurationBuilder.Verify(m => m.Add(It.Is<SecretsManagerConfigurationSource>(s => s.Region == region)));
+            Assert.That(_capturedSource, Is.Not.Null);
+            Assert.That(_capturedSource!.AwsOptions, Is.SameAs(awsOptions));
         }
 
         [Test, CustomAutoData]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_optionConfigurator(Action<SecretsManagerConfigurationProviderOptions> optionConfigurator)
+        public void AddSecretsManager_with_AWSOptions_configure_applies_options_and_wires_awsOptions(AWSOptions awsOptions)
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object, awsOptions,
+                opts => opts.ReloadInterval = TimeSpan.FromMinutes(2));
 
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, configurator: optionConfigurator);
-
-            configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
-
-            Mock.Get(optionConfigurator).Verify(p => p(It.IsAny<SecretsManagerConfigurationProviderOptions>()), Times.Once);
+            Assert.That(_capturedSource, Is.Not.Null);
+            Assert.That(_capturedSource!.AwsOptions, Is.SameAs(awsOptions));
+            Assert.That(_capturedSource!.Options.ReloadInterval, Is.EqualTo(TimeSpan.FromMinutes(2)));
         }
 
         [Test, CustomAutoData]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_credentials(AWSCredentials credentials)
+        public void AddSecretsManager_with_client_wires_client_into_source(IAmazonSecretsManager client)
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object, client);
 
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, credentials);
-
-            configurationBuilder.Verify(m => m.Add(It.IsAny<SecretsManagerConfigurationSource>()));
+            Assert.That(_capturedSource, Is.Not.Null);
+            Assert.That(_capturedSource!.Client, Is.SameAs(client));
         }
 
         [Test, CustomAutoData]
-        public void SecretsManagerConfigurationSource_can_be_added_via_convenience_method_with_credentials_and_region(AWSCredentials credentials, RegionEndpoint region)
+        public void AddSecretsManager_with_client_configure_applies_options_and_wires_client(IAmazonSecretsManager client)
         {
-            configurationBuilder.Setup(m => m.Add(It.IsAny<IConfigurationSource>()));
+            SecretsManagerExtensions.AddSecretsManager(_builder.Object, client,
+                opts => opts.ReloadInterval = TimeSpan.FromMinutes(3));
 
-            SecretsManagerExtensions.AddSecretsManager(configurationBuilder.Object, credentials, region);
-
-            configurationBuilder.Verify(m => m.Add(It.Is<SecretsManagerConfigurationSource>(s => s.Region == region)));
+            Assert.That(_capturedSource, Is.Not.Null);
+            Assert.That(_capturedSource!.Client, Is.SameAs(client));
+            Assert.That(_capturedSource!.Options.ReloadInterval, Is.EqualTo(TimeSpan.FromMinutes(3)));
         }
-
     }
 }

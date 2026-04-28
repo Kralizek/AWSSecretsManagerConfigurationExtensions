@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -9,7 +9,7 @@ using AutoFixture;
 using AutoFixture.AutoMoq;
 using AutoFixture.NUnit3;
 
-using Kralizek.Extensions.Configuration.Internal;
+using Kralizek.Extensions.Configuration;
 
 namespace Tests
 {
@@ -40,7 +40,7 @@ namespace Tests
                 GenerateDelegates = true
             });
 
-            fixture.Customize<SecretsManagerConfigurationProviderOptions>(o => o.OmitAutoProperties());
+            fixture.Customize<SecretsManagerOptions>(o => o.OmitAutoProperties());
 
             fixture.Customize<MemoryStream>(c =>
             {

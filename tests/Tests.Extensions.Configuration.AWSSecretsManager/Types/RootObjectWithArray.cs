@@ -2,8 +2,8 @@ namespace Tests.Types
 {
     public class RootObjectWithArray
     {
-        public string[] Properties { get; set; }
+        public string[] Properties { get; set; } = null!;
 
-        public MidLevel[] Mids { get; set; }
+        public MidLevel[] Mids { get; set; } = null!;
     }
 }
