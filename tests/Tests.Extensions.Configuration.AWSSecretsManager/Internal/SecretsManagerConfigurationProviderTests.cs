@@ -277,7 +277,7 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public void Should_poll_and_reload_when_secrets_changed([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueInitialResponse, GetSecretValueResponse getSecretValueUpdatedResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object> changeCallback, object changeCallbackState)
+        public void Should_poll_and_reload_when_secrets_changed([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueInitialResponse, GetSecretValueResponse getSecretValueUpdatedResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object?> changeCallback, object changeCallbackState)
         {
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 
@@ -299,7 +299,7 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
-        public async Task Should_reload_when_forceReload_called([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueInitialResponse, GetSecretValueResponse getSecretValueUpdatedResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object> changeCallback, object changeCallbackState)
+        public async Task Should_reload_when_forceReload_called([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueInitialResponse, GetSecretValueResponse getSecretValueUpdatedResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerOptions options, SecretsManagerConfigurationProvider sut, IFixture fixture, Action<object?> changeCallback, object changeCallbackState)
         {
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
 

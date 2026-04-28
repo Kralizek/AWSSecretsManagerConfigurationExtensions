@@ -6,7 +6,7 @@ namespace Tests
 {
     public static class ConfigurationProviderExtensions
     {
-        public static string Get(this IConfigurationProvider provider, params string[] pathSegments)
+        public static string? Get(this IConfigurationProvider provider, params string[] pathSegments)
         {
             var key = ConfigurationPath.Combine(pathSegments);
 
