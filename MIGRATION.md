@@ -36,6 +36,23 @@ options.PollingInterval = TimeSpan.FromMinutes(5);
 options.ReloadInterval = TimeSpan.FromMinutes(5);
 ```
 
+## `SecretsManagerConfigurationSource` is now `internal`
+
+`SecretsManagerConfigurationSource` was `public` in 1.x. It is now `internal` in 2.0. Any code that referenced this type directly will no longer compile.
+
+This is an intentional API reduction: the source is an implementation detail of `AddSecretsManager` and is not part of the public contract.
+
+```csharp
+// Before (1.x) — no longer compiles in 2.0
+var source = new SecretsManagerConfigurationSource(options);
+builder.Add(source);
+
+// After — use the AddSecretsManager extension
+builder.AddSecretsManager(options => { ... });
+```
+
+If you were constructing or referencing the source directly (e.g., in integration tests), switch to `AddSecretsManager` instead.
+
 ## `AddSecretsManager` overloads changed
 
 The old overload accepting `AWSCredentials?` and `RegionEndpoint?` has been removed:

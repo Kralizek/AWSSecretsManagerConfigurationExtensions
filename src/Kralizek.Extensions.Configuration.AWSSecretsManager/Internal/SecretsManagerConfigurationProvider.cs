@@ -19,7 +19,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         private readonly IAmazonSecretsManager _client;
         private readonly SecretsManagerOptions _options;
 
-        private HashSet<(string, string)> _loadedValues = new HashSet<(string, string)>();
+        private Dictionary<string, string?> _loadedValues = new Dictionary<string, string?>(StringComparer.InvariantCultureIgnoreCase);
         private Task? _pollingTask;
         private CancellationTokenSource? _cancellationTokenSource;
 
@@ -96,7 +96,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 ? await FetchConfigurationBatchAsync(cancellationToken).ConfigureAwait(false)
                 : await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false);
 
-            if (!oldValues.SetEquals(newValues))
+            if (!DictionaryEquals(oldValues, newValues))
             {
                 _loadedValues = newValues;
                 SetData(_loadedValues, triggerReload: true);
@@ -160,11 +160,20 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
         }
 
-        private void SetData(IEnumerable<(string, string)> values, bool triggerReload)
+        private void SetData(Dictionary<string, string?> values, bool triggerReload)
         {
-            Data = values.ToDictionary<(string, string), string, string?>(
-                x => x.Item1, x => x.Item2, StringComparer.InvariantCultureIgnoreCase);
+            Data = values;
             if (triggerReload) OnReload();
+        }
+
+        private static bool DictionaryEquals(Dictionary<string, string?> a, Dictionary<string, string?> b)
+        {
+            if (a.Count != b.Count) return false;
+            foreach (var kvp in a)
+            {
+                if (!b.TryGetValue(kvp.Key, out var bValue) || kvp.Value != bValue) return false;
+            }
+            return true;
         }
 
         private void ApplyEntry(Dictionary<string, string?> dict, string key, string value)
@@ -215,7 +224,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             return result;
         }
 
-        private async Task<HashSet<(string, string)>> FetchConfigurationAsync(CancellationToken cancellationToken)
+        private async Task<Dictionary<string, string?>> FetchConfigurationAsync(CancellationToken cancellationToken)
         {
             var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
             var dict = new Dictionary<string, string?>(StringComparer.InvariantCultureIgnoreCase);
@@ -278,7 +287,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 }
             }
 
-            return new HashSet<(string, string)>(dict.Select(kv => (kv.Key, kv.Value ?? "")));
+            return dict;
         }
 
         private static List<List<SecretListEntry>> ChunkList(IReadOnlyList<SecretListEntry> source,
@@ -289,7 +298,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 .Select(g => g.Select(x => x.item).ToList())
                 .ToList();
 
-        private async Task<HashSet<(string, string)>> FetchConfigurationBatchAsync(CancellationToken cancellationToken)
+        private async Task<Dictionary<string, string?>> FetchConfigurationBatchAsync(CancellationToken cancellationToken)
         {
             var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
             var dict = new Dictionary<string, string?>(StringComparer.InvariantCultureIgnoreCase);
@@ -363,7 +372,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 }
             }
 
-            return new HashSet<(string, string)>(dict.Select(kv => (kv.Key, kv.Value ?? "")));
+            return dict;
         }
 
         private static List<Exception> HandleBatchErrors(BatchGetSecretValueResponse response)
@@ -388,10 +397,15 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         public void Dispose()
         {
-            _cancellationTokenSource?.Cancel();
+            var cancellationTokenSource = _cancellationTokenSource;
+            var pollingTask = _pollingTask;
+
             _cancellationTokenSource = null;
-            try { _pollingTask?.GetAwaiter().GetResult(); } catch (TaskCanceledException) { }
             _pollingTask = null;
+
+            cancellationTokenSource?.Cancel();
+            try { pollingTask?.GetAwaiter().GetResult(); } catch (OperationCanceledException) { }
+            finally { cancellationTokenSource?.Dispose(); }
         }
     }
 }

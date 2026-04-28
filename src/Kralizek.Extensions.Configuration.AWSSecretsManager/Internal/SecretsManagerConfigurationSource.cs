@@ -28,6 +28,10 @@ namespace Kralizek.Extensions.Configuration.Internal
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
+        internal SecretsManagerOptions Options => _options;
+        internal IAmazonSecretsManager? Client => _client;
+        internal AWSOptions? AwsOptions => _awsOptions;
+
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
             var client = _client ?? CreateClient();
