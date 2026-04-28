@@ -1,6 +1,7 @@
 # Kralizek.Extensions.Configuration.AWSSecretsManager
 
 [![NuGet](https://img.shields.io/nuget/v/Kralizek.Extensions.Configuration.AWSSecretsManager.svg)](https://www.nuget.org/packages/Kralizek.Extensions.Configuration.AWSSecretsManager)
+[![Build status](https://github.com/Kralizek/AWSSecretsManagerConfigurationExtensions/actions/workflows/ci.yml/badge.svg)](https://github.com/Kralizek/AWSSecretsManagerConfigurationExtensions/actions/workflows/ci.yml)
 
 AWS Secrets Manager configuration provider for `Microsoft.Extensions.Configuration`. Load secrets directly into your .NET configuration pipeline.
 
@@ -114,6 +115,29 @@ builder.AddSecretsManager(options =>
 
 The provider always fetches fresh values from AWS Secrets Manager when `Load()` or a reload is triggered. There is no in-memory cache layer — this is intentional so that your application always reflects the current secret state.
 
+## Amazon Elastic Kubernetes Service (EKS)
+
+In order to authenticate requests to AWS Secrets Manager a pod needs to use an IAM role that grants access to your secrets. Amazon introduced [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) to make this possible without third-party solutions.
+
+This feature requires an additional package loaded by reflection:
+
+```bash
+dotnet add package AWSSDK.SecurityToken
+```
+
 ## Migration from 1.x
 
 See [MIGRATION.md](MIGRATION.md) for the list of breaking changes.
+
+## Mentions by the community
+
+* [Secure secrets storage for ASP.NET Core with AWS Secrets Manager (Part 1)](https://andrewlock.net/secure-secrets-storage-for-asp-net-core-with-aws-secrets-manager-part-1/) by Andrew Lock
+* [Secure secrets storage for ASP.NET Core with AWS Secrets Manager (Part 2)](https://andrewlock.net/secure-secrets-storage-for-asp-net-core-with-aws-secrets-manager-part-2/) by Andrew Lock
+* [Useful tools to manage your application's secrets](https://raygun.com/blog/manage-application-secrets/) by Jerrie Pelser
+* [Storing secrets CORRECTLY in .NET using AWS Secrets Manager](https://www.youtube.com/watch?v=BGW4FnEB-CM) by [Nick Chapsas](https://github.com/Elfocrash)
+* [Effortless Secret Management in .NET Using AWS Secrets Manager](https://www.youtube.com/watch?v=hDVdLNJfaNU) by [Milan Jovanović](https://github.com/m-jovanovic)
+* [Cloud Fundamentals: AWS Services for C# Developers](https://dometrain.com/course/cloud-fundamentals-aws-services-for-c-developers/) by [Nick Chapsas](https://github.com/Elfocrash)
+
+## Stargazers over time
+
+[![Stargazers over time](https://starchart.cc/Kralizek/AWSSecretsManagerConfigurationExtensions.svg)](https://starchart.cc/Kralizek/AWSSecretsManagerConfigurationExtensions)
