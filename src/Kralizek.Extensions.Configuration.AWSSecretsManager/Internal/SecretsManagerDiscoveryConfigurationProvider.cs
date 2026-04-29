@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -15,113 +14,32 @@ namespace Kralizek.Extensions.Configuration.Internal
     /// <summary>
     /// Configuration provider that discovers secrets via <c>ListSecrets</c> and fetches their values.
     /// </summary>
-    public sealed class SecretsManagerDiscoveryConfigurationProvider : ConfigurationProvider, IDisposable
+    public sealed class SecretsManagerDiscoveryConfigurationProvider : SecretsManagerConfigurationProviderBase
     {
         private readonly IAmazonSecretsManager _client;
         private readonly SecretsManagerDiscoveryOptions _options;
 
-        private Dictionary<string, string?> _loadedValues = new(StringComparer.InvariantCultureIgnoreCase);
-        private Task? _pollingTask;
-        private CancellationTokenSource? _cancellationTokenSource;
-
+        /// <inheritdoc cref="SecretsManagerDiscoveryConfigurationProvider"/>
         public SecretsManagerDiscoveryConfigurationProvider(IAmazonSecretsManager client, SecretsManagerDiscoveryOptions options)
         {
             _client  = client  ?? throw new ArgumentNullException(nameof(client));
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
-        public override void Load() => LoadAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        /// <inheritdoc/>
+        protected override TimeSpan? ReloadInterval => _options.ReloadInterval;
 
-        public Task ForceReloadAsync(CancellationToken cancellationToken) => ReloadAsync(cancellationToken);
+        /// <inheritdoc/>
+        protected override Action<SecretsManagerLogEvent>? LogEventSink => _options.LogEvent;
 
-        private void Log(LogLevel level, EventId eventId, string message, Exception? ex = null, params object?[] args)
-            => _options.LogEvent?.Invoke(new SecretsManagerLogEvent(level, eventId, message, ex, Args: args));
+        /// <inheritdoc/>
+        protected override DuplicateKeyHandling DuplicateKeyHandling => _options.DuplicateKeyHandling;
 
-        private async Task LoadAsync()
-        {
-            Log(LogLevel.Debug, SecretsManagerLogEvents.LoadStarted, "Secrets Manager configuration load started.");
-
-            _loadedValues = _options.UseBatchFetch
-                ? await FetchConfigurationBatchAsync(default).ConfigureAwait(false)
-                : await FetchConfigurationAsync(default).ConfigureAwait(false);
-
-            SetData(_loadedValues, triggerReload: false);
-
-            Log(LogLevel.Debug, SecretsManagerLogEvents.LoadCompleted,
-                "Secrets Manager configuration load completed. {SecretCount} secrets loaded.",
-                args: _loadedValues.Count);
-
-            if (_options.ReloadInterval.HasValue)
-            {
-                _cancellationTokenSource = new CancellationTokenSource();
-                _pollingTask = PollForChangesAsync(_options.ReloadInterval.Value, _cancellationTokenSource.Token);
-            }
-        }
-
-        private async Task PollForChangesAsync(TimeSpan interval, CancellationToken cancellationToken)
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                try { await Task.Delay(interval, cancellationToken).ConfigureAwait(false); }
-                catch (OperationCanceledException) { return; }
-
-                try { await ReloadAsync(cancellationToken).ConfigureAwait(false); }
-                catch (Exception ex) when (!(ex is OperationCanceledException))
-                {
-                    Log(LogLevel.Error, SecretsManagerLogEvents.ReloadFailed, "Secrets Manager configuration reload failed.", ex);
-                }
-            }
-        }
-
-        private async Task ReloadAsync(CancellationToken cancellationToken)
-        {
-            Log(LogLevel.Debug, SecretsManagerLogEvents.ReloadStarted, "Secrets Manager configuration reload started.");
-            var oldValues = _loadedValues;
-            var newValues = _options.UseBatchFetch
-                ? await FetchConfigurationBatchAsync(cancellationToken).ConfigureAwait(false)
-                : await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false);
-
-            if (!SecretsManagerHelpers.DictionaryEquals(oldValues, newValues))
-            {
-                _loadedValues = newValues;
-                SetData(_loadedValues, triggerReload: true);
-            }
-            Log(LogLevel.Debug, SecretsManagerLogEvents.ReloadCompleted, "Secrets Manager configuration reload completed.");
-        }
-
-        private void SetData(Dictionary<string, string?> values, bool triggerReload)
-        {
-            Data = values;
-            if (triggerReload) OnReload();
-        }
-
-        private void ApplyEntry(Dictionary<string, string?> dict, string key, string value)
-        {
-            switch (_options.DuplicateKeyHandling)
-            {
-                case DuplicateKeyHandling.Throw:
-                    if (dict.ContainsKey(key))
-                        throw new InvalidOperationException(
-                            $"Duplicate configuration key '{key}' found in AWS Secrets Manager. " +
-                            "Set DuplicateKeyHandling to FirstWins or LastWins to suppress this error.");
-                    dict[key] = value;
-                    break;
-                case DuplicateKeyHandling.FirstWins:
-                    if (!dict.ContainsKey(key))
-                        dict[key] = value;
-                    else
-                        Log(LogLevel.Debug, SecretsManagerLogEvents.DuplicateKeyResolved,
-                            "Duplicate configuration key {Key} resolved (FirstWins); existing value kept.", args: key);
-                    break;
-                case DuplicateKeyHandling.LastWins:
-                default:
-                    if (dict.ContainsKey(key))
-                        Log(LogLevel.Debug, SecretsManagerLogEvents.DuplicateKeyResolved,
-                            "Duplicate configuration key {Key} resolved (LastWins); value overwritten.", args: key);
-                    dict[key] = value;
-                    break;
-            }
-        }
+        /// <inheritdoc/>
+        protected override Task<Dictionary<string, string?>> FetchConfigurationCoreAsync(CancellationToken cancellationToken)
+            => _options.UseBatchFetch
+                ? FetchConfigurationBatchAsync(cancellationToken)
+                : FetchConfigurationAsync(cancellationToken);
 
         private async Task<IReadOnlyList<SecretListEntry>> FetchAllSecretsAsync(CancellationToken cancellationToken)
         {
@@ -174,20 +92,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                     var secretString = secretValue.SecretString;
                     if (secretString is null) continue;
 
-                    if (SecretsManagerHelpers.TryParseJson(secretString, out var jElement))
-                    {
-                        foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, secret.Name))
-                        {
-                            var configKey = _options.KeyGenerator(secret, key);
-                            ApplyEntry(dict, configKey, value);
-                        }
-                    }
-                    else
-                    {
-                        var configKey = _options.KeyGenerator(secret, secret.Name);
-                        ApplyEntry(dict, configKey, secretString);
-                    }
-
+                    ProcessSecretString(dict, secret, secretString);
                     Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded.", args: secret.Name);
                 }
                 catch (MissingSecretValueException)
@@ -241,20 +146,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                             var secretString = secretValue.SecretString;
                             if (secretString is null) continue;
 
-                            if (SecretsManagerHelpers.TryParseJson(secretString, out var jElement))
-                            {
-                                foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, secret.Name))
-                                {
-                                    var configKey = _options.KeyGenerator(secret, key);
-                                    ApplyEntry(dict, configKey, value);
-                                }
-                            }
-                            else
-                            {
-                                var configKey = _options.KeyGenerator(secret, secret.Name);
-                                ApplyEntry(dict, configKey, secretString);
-                            }
-
+                            ProcessSecretString(dict, secret, secretString);
                             Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded (batch).", args: secret.Name);
                         }
                     } while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken));
@@ -271,15 +163,21 @@ namespace Kralizek.Extensions.Configuration.Internal
             return dict;
         }
 
-        public void Dispose()
+        private void ProcessSecretString(Dictionary<string, string?> dict, SecretListEntry secret, string secretString)
         {
-            var cancellationTokenSource = _cancellationTokenSource;
-            var pollingTask = _pollingTask;
-            _cancellationTokenSource = null;
-            _pollingTask = null;
-            cancellationTokenSource?.Cancel();
-            try { pollingTask?.GetAwaiter().GetResult(); } catch (OperationCanceledException) { }
-            finally { cancellationTokenSource?.Dispose(); }
+            if (SecretsManagerHelpers.TryParseJson(secretString, out var jElement))
+            {
+                foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, secret.Name))
+                {
+                    var configKey = _options.KeyGenerator(secret, key);
+                    ApplyEntry(dict, configKey, value);
+                }
+            }
+            else
+            {
+                var configKey = _options.KeyGenerator(secret, secret.Name);
+                ApplyEntry(dict, configKey, secretString);
+            }
         }
     }
 }
