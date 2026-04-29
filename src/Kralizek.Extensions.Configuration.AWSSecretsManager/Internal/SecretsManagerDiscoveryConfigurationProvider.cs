@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Amazon.Runtime;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 
@@ -14,30 +12,29 @@ using Microsoft.Extensions.Logging;
 
 namespace Kralizek.Extensions.Configuration.Internal
 {
-    public class SecretsManagerConfigurationProvider : ConfigurationProvider, IDisposable
+    /// <summary>
+    /// Configuration provider that discovers secrets via <c>ListSecrets</c> and fetches their values.
+    /// </summary>
+    public sealed class SecretsManagerDiscoveryConfigurationProvider : ConfigurationProvider, IDisposable
     {
         private readonly IAmazonSecretsManager _client;
-        private readonly SecretsManagerOptions _options;
+        private readonly SecretsManagerDiscoveryOptions _options;
 
-        private Dictionary<string, string?> _loadedValues = new Dictionary<string, string?>(StringComparer.InvariantCultureIgnoreCase);
+        private Dictionary<string, string?> _loadedValues = new(StringComparer.InvariantCultureIgnoreCase);
         private Task? _pollingTask;
         private CancellationTokenSource? _cancellationTokenSource;
 
-        public SecretsManagerConfigurationProvider(IAmazonSecretsManager client, SecretsManagerOptions options)
+        public SecretsManagerDiscoveryConfigurationProvider(IAmazonSecretsManager client, SecretsManagerDiscoveryOptions options)
         {
-            _client = client ?? throw new ArgumentNullException(nameof(client));
+            _client  = client  ?? throw new ArgumentNullException(nameof(client));
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
-        public override void Load()
-        {
-            LoadAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-        }
+        public override void Load() => LoadAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 
         public Task ForceReloadAsync(CancellationToken cancellationToken) => ReloadAsync(cancellationToken);
 
-        private void Log(LogLevel level, EventId eventId, string message,
-            Exception? ex = null, params object?[] args)
+        private void Log(LogLevel level, EventId eventId, string message, Exception? ex = null, params object?[] args)
             => _options.LogEvent?.Invoke(new SecretsManagerLogEvent(level, eventId, message, ex, Args: args));
 
         private async Task LoadAsync()
@@ -65,23 +62,13 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                try
-                {
-                    await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
+                try { await Task.Delay(interval, cancellationToken).ConfigureAwait(false); }
+                catch (OperationCanceledException) { return; }
 
-                try
-                {
-                    await ReloadAsync(cancellationToken).ConfigureAwait(false);
-                }
+                try { await ReloadAsync(cancellationToken).ConfigureAwait(false); }
                 catch (Exception ex) when (!(ex is OperationCanceledException))
                 {
-                    Log(LogLevel.Error, SecretsManagerLogEvents.ReloadFailed,
-                        "Secrets Manager configuration reload failed.", ex);
+                    Log(LogLevel.Error, SecretsManagerLogEvents.ReloadFailed, "Secrets Manager configuration reload failed.", ex);
                 }
             }
         }
@@ -89,91 +76,23 @@ namespace Kralizek.Extensions.Configuration.Internal
         private async Task ReloadAsync(CancellationToken cancellationToken)
         {
             Log(LogLevel.Debug, SecretsManagerLogEvents.ReloadStarted, "Secrets Manager configuration reload started.");
-
             var oldValues = _loadedValues;
-
             var newValues = _options.UseBatchFetch
                 ? await FetchConfigurationBatchAsync(cancellationToken).ConfigureAwait(false)
                 : await FetchConfigurationAsync(cancellationToken).ConfigureAwait(false);
 
-            if (!DictionaryEquals(oldValues, newValues))
+            if (!SecretsManagerHelpers.DictionaryEquals(oldValues, newValues))
             {
                 _loadedValues = newValues;
                 SetData(_loadedValues, triggerReload: true);
             }
-
             Log(LogLevel.Debug, SecretsManagerLogEvents.ReloadCompleted, "Secrets Manager configuration reload completed.");
-        }
-
-        private static bool TryParseJson(string data, out JsonElement? jsonElement)
-        {
-            jsonElement = null;
-            data = data.TrimStart();
-            var firstChar = data.FirstOrDefault();
-            if (firstChar != '[' && firstChar != '{') return false;
-            try
-            {
-                using var doc = JsonDocument.Parse(data);
-                jsonElement = doc.RootElement.Clone();
-                return true;
-            }
-            catch (JsonException) { return false; }
-        }
-
-        private static IEnumerable<(string key, string value)> ExtractValues(JsonElement? jsonElement, string prefix)
-        {
-            if (jsonElement == null) yield break;
-            var element = jsonElement.Value;
-            switch (element.ValueKind)
-            {
-                case JsonValueKind.Array:
-                {
-                    var i = 0;
-                    foreach (var el in element.EnumerateArray())
-                    {
-                        var k = $"{prefix}{ConfigurationPath.KeyDelimiter}{i++}";
-                        foreach (var pair in ExtractValues(el, k)) yield return pair;
-                    }
-                    break;
-                }
-                case JsonValueKind.Number:
-                    yield return (prefix, element.GetRawText());
-                    break;
-                case JsonValueKind.String:
-                    yield return (prefix, element.GetString() ?? "");
-                    break;
-                case JsonValueKind.True:
-                case JsonValueKind.False:
-                    yield return (prefix, element.GetBoolean().ToString());
-                    break;
-                case JsonValueKind.Object:
-                    foreach (var prop in element.EnumerateObject())
-                    {
-                        var k = $"{prefix}{ConfigurationPath.KeyDelimiter}{prop.Name}";
-                        foreach (var pair in ExtractValues(prop.Value, k)) yield return pair;
-                    }
-                    break;
-                case JsonValueKind.Undefined:
-                case JsonValueKind.Null:
-                default:
-                    throw new FormatException("unsupported json token");
-            }
         }
 
         private void SetData(Dictionary<string, string?> values, bool triggerReload)
         {
             Data = values;
             if (triggerReload) OnReload();
-        }
-
-        private static bool DictionaryEquals(Dictionary<string, string?> a, Dictionary<string, string?> b)
-        {
-            if (a.Count != b.Count) return false;
-            foreach (var kvp in a)
-            {
-                if (!b.TryGetValue(kvp.Key, out var bValue) || kvp.Value != bValue) return false;
-            }
-            return true;
         }
 
         private void ApplyEntry(Dictionary<string, string?> dict, string key, string value)
@@ -206,9 +125,6 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         private async Task<IReadOnlyList<SecretListEntry>> FetchAllSecretsAsync(CancellationToken cancellationToken)
         {
-            if (_options.SecretIds.Count > 0)
-                return _options.SecretIds.Select(id => new SecretListEntry { ARN = id, Name = id }).ToList();
-
             var result = new List<SecretListEntry>();
             ListSecretsResponse? response = null;
             do
@@ -248,36 +164,35 @@ namespace Kralizek.Extensions.Configuration.Internal
                     {
                         secretValue = await _client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
                     }
-                    catch (ResourceNotFoundException) when (_options.IgnoreMissingValues)
+                    catch (ResourceNotFoundException e)
                     {
-                        Log(LogLevel.Debug, SecretsManagerLogEvents.MissingSecretIgnored,
-                            "Missing secret {SecretName} ignored.", args: secret.Name);
-                        continue;
+                        throw new MissingSecretValueException(
+                            $"Error retrieving secret value (Secret: {secret.Name} Arn: {secret.ARN})",
+                            secret.Name, secret.ARN, e);
                     }
-
-                    var secretEntry = _options.SecretIds.Count > 0
-                        ? new SecretListEntry { ARN = secret.ARN, Name = secretValue.Name, CreatedDate = secretValue.CreatedDate }
-                        : secret;
 
                     var secretString = secretValue.SecretString;
                     if (secretString is null) continue;
 
-                    if (TryParseJson(secretString, out var jElement))
+                    if (SecretsManagerHelpers.TryParseJson(secretString, out var jElement))
                     {
-                        foreach (var (key, value) in ExtractValues(jElement!, secretEntry.Name))
+                        foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, secret.Name))
                         {
-                            var configKey = _options.KeyGenerator(secretEntry, key);
+                            var configKey = _options.KeyGenerator(secret, key);
                             ApplyEntry(dict, configKey, value);
                         }
                     }
                     else
                     {
-                        var configKey = _options.KeyGenerator(secretEntry, secretEntry.Name);
+                        var configKey = _options.KeyGenerator(secret, secret.Name);
                         ApplyEntry(dict, configKey, secretString);
                     }
 
-                    Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded.",
-                        args: secretEntry.Name);
+                    Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded.", args: secret.Name);
+                }
+                catch (MissingSecretValueException)
+                {
+                    throw;
                 }
                 catch (ResourceNotFoundException e)
                 {
@@ -290,19 +205,12 @@ namespace Kralizek.Extensions.Configuration.Internal
             return dict;
         }
 
-        private static List<List<SecretListEntry>> ChunkList(IReadOnlyList<SecretListEntry> source,
-            Func<SecretListEntry, bool> filter, int chunkSize)
-            => source.Where(filter)
-                .Select((item, idx) => (item, idx))
-                .GroupBy(x => x.idx / chunkSize)
-                .Select(g => g.Select(x => x.item).ToList())
-                .ToList();
-
         private async Task<Dictionary<string, string?>> FetchConfigurationBatchAsync(CancellationToken cancellationToken)
         {
             var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
             var dict = new Dictionary<string, string?>(StringComparer.InvariantCultureIgnoreCase);
-            var chunked = ChunkList(secrets, _options.SecretFilter, 20);
+            var filtered = secrets.Where(_options.SecretFilter).ToList();
+            var chunked = SecretsManagerHelpers.ChunkList(filtered, 20);
 
             foreach (var secretSet in chunked)
             {
@@ -311,8 +219,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                     SecretIdList = secretSet.Select(a => a.ARN).ToList()
                 };
                 var contextList = secretSet.Select(a => new SecretValueContext(a)).ToList();
-                _options.ConfigureBatchSecretValueRequest?.Invoke(request,
-                    (IReadOnlyList<SecretValueContext>)contextList);
+                _options.ConfigureBatchSecretValueRequest?.Invoke(request, (IReadOnlyList<SecretValueContext>)contextList);
 
                 try
                 {
@@ -320,46 +227,35 @@ namespace Kralizek.Extensions.Configuration.Internal
                     do
                     {
                         request.NextToken = secretValueSet?.NextToken;
-                        secretValueSet = await _client.BatchGetSecretValueAsync(request, cancellationToken)
-                            .ConfigureAwait(false);
+                        secretValueSet = await _client.BatchGetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
 
                         if (secretValueSet.Errors?.Any() == true)
                         {
-                            var errors = HandleBatchErrors(secretValueSet);
-                            if (!_options.IgnoreMissingValues || errors.Any(e => e is not MissingSecretValueException))
-                                throw new AggregateException(errors);
-
-                            foreach (var missingEx in errors.OfType<MissingSecretValueException>())
-                                Log(LogLevel.Debug, SecretsManagerLogEvents.MissingSecretIgnored,
-                                    "Missing secret {SecretName} ignored (batch).", args: missingEx.SecretName);
+                            var errors = SecretsManagerHelpers.HandleBatchErrors(secretValueSet);
+                            throw new AggregateException(errors);
                         }
 
                         foreach (var (secretValue, secret) in secretValueSet.SecretValues
                             .Join(secretSet, sv => sv.ARN, s => s.ARN, (sv, s) => (sv, s)))
                         {
-                            var secretEntry = _options.SecretIds.Count > 0
-                                ? new SecretListEntry { ARN = secret.ARN, Name = secretValue.Name, CreatedDate = secretValue.CreatedDate }
-                                : secret;
-
                             var secretString = secretValue.SecretString;
                             if (secretString is null) continue;
 
-                            if (TryParseJson(secretString, out var jElement))
+                            if (SecretsManagerHelpers.TryParseJson(secretString, out var jElement))
                             {
-                                foreach (var (key, value) in ExtractValues(jElement!, secretEntry.Name))
+                                foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, secret.Name))
                                 {
-                                    var configKey = _options.KeyGenerator(secretEntry, key);
+                                    var configKey = _options.KeyGenerator(secret, key);
                                     ApplyEntry(dict, configKey, value);
                                 }
                             }
                             else
                             {
-                                var configKey = _options.KeyGenerator(secretEntry, secretEntry.Name);
+                                var configKey = _options.KeyGenerator(secret, secret.Name);
                                 ApplyEntry(dict, configKey, secretString);
                             }
 
-                            Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded (batch).",
-                                args: secretEntry.Name);
+                            Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded (batch).", args: secret.Name);
                         }
                     } while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken));
                 }
@@ -375,34 +271,12 @@ namespace Kralizek.Extensions.Configuration.Internal
             return dict;
         }
 
-        private static List<Exception> HandleBatchErrors(BatchGetSecretValueResponse response)
-        {
-            return response.Errors.Select<APIErrorType, Exception>(err => err.ErrorCode switch
-            {
-                "DecryptionFailure" => new DecryptionFailureException(err.Message, ErrorType.Unknown,
-                    err.ErrorCode, response.ResponseMetadata.RequestId, response.HttpStatusCode),
-                "InternalServiceError" => new InternalServiceErrorException(err.Message, ErrorType.Unknown,
-                    err.ErrorCode, response.ResponseMetadata.RequestId, response.HttpStatusCode),
-                "InvalidParameterException" => new InvalidParameterException(err.Message, ErrorType.Unknown,
-                    err.ErrorCode, response.ResponseMetadata.RequestId, response.HttpStatusCode),
-                "InvalidRequestException" => new InvalidRequestException(err.Message, ErrorType.Unknown,
-                    err.ErrorCode, response.ResponseMetadata.RequestId, response.HttpStatusCode),
-                "ResourceNotFoundException" => new MissingSecretValueException(err.Message, err.SecretId, err.SecretId,
-                    new ResourceNotFoundException(err.Message, ErrorType.Unknown, err.ErrorCode,
-                        response.ResponseMetadata.RequestId, response.HttpStatusCode)),
-                _ => new AmazonServiceException(err.Message, ErrorType.Unknown, err.ErrorCode,
-                    response.ResponseMetadata.RequestId, response.HttpStatusCode)
-            }).ToList();
-        }
-
         public void Dispose()
         {
             var cancellationTokenSource = _cancellationTokenSource;
             var pollingTask = _pollingTask;
-
             _cancellationTokenSource = null;
             _pollingTask = null;
-
             cancellationTokenSource?.Cancel();
             try { pollingTask?.GetAwaiter().GetResult(); } catch (OperationCanceledException) { }
             finally { cancellationTokenSource?.Dispose(); }

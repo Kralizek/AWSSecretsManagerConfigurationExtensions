@@ -1,8 +1,99 @@
-# Migration Guide: 1.x → 2.0
+# Migration Guide
 
-This document lists all breaking changes introduced in version 2.0.
+## 2.x → 3.0
 
-## Options class renamed
+Version 3.0 replaces the single `AddSecretsManager` API with three explicit, purpose-built methods. This is a **breaking change**: all call sites must be updated.
+
+### `AddSecretsManager` removed
+
+`AddSecretsManager` and `SecretsManagerOptions` have been **removed**. Choose the method that matches your use case:
+
+#### Discovery — load all secrets via `ListSecrets`
+
+```csharp
+// Before
+builder.AddSecretsManager();
+builder.AddSecretsManager(awsOptions);
+builder.AddSecretsManager(client);
+builder.AddSecretsManager(options => { options.SecretFilter = ...; });
+
+// After
+builder.AddSecretsManagerDiscovery();
+builder.AddSecretsManagerDiscovery(awsOptions);
+builder.AddSecretsManagerDiscovery(client);
+builder.AddSecretsManagerDiscovery(options => { options.SecretFilter = ...; });
+```
+
+#### KnownSecrets — load a fixed set of secrets by ARN/name
+
+```csharp
+// Before
+builder.AddSecretsManager(options =>
+{
+    options.SecretIds.Add("my-secret-1");
+    options.SecretIds.Add("my-secret-2");
+});
+
+// After
+builder.AddSecretsManagerKnownSecrets(new[] { "my-secret-1", "my-secret-2" });
+```
+
+#### KnownSecret — load exactly one secret
+
+```csharp
+// Before
+builder.AddSecretsManager(options =>
+{
+    options.SecretIds.Add("my-app/prod");
+});
+
+// After
+builder.AddSecretsManagerKnownSecret("my-app/prod");
+```
+
+### `SecretsManagerOptions` removed
+
+`SecretsManagerOptions` has been replaced by three separate options classes:
+
+| Old | New |
+|---|---|
+| `SecretsManagerOptions` (with `SecretFilter`, `KeyGenerator`, etc.) | `SecretsManagerDiscoveryOptions` |
+| `SecretsManagerOptions` (with `SecretIds`) | `SecretsManagerKnownSecretsOptions` |
+| `SecretsManagerOptions` (with a single `SecretIds` entry) | `SecretsManagerKnownSecretOptions` |
+
+Options are configured via the lambda overloads of each method:
+
+```csharp
+// Before
+builder.AddSecretsManager(options =>
+{
+    options.KeyGenerator = (entry, key) => key.ToUpper();
+    options.ReloadInterval = TimeSpan.FromMinutes(5);
+    options.UseBootstrapLogging(loggerFactory);
+});
+
+// After
+builder.AddSecretsManagerDiscovery(options =>
+{
+    options.KeyGenerator = (entry, key) => key.ToUpper();
+    options.ReloadInterval = TimeSpan.FromMinutes(5);
+    options.UseBootstrapLogging(loggerFactory);
+});
+```
+
+### `IgnoreMissingValues` removed
+
+`SecretsManagerOptions.IgnoreMissingValues` has been removed with no replacement. All three providers now throw `MissingSecretValueException` when a secret cannot be found.
+
+### `SecretIds` removed from options
+
+`SecretsManagerOptions.SecretIds` has been removed. Use `AddSecretsManagerKnownSecret` or `AddSecretsManagerKnownSecrets` instead (see above).
+
+---
+
+## 1.x → 2.0
+
+### Options class renamed
 
 `SecretsManagerConfigurationProviderOptions` has been **removed**. Use `SecretsManagerOptions` instead.
 
@@ -14,7 +105,7 @@ var options = new SecretsManagerConfigurationProviderOptions();
 var options = new SecretsManagerOptions();
 ```
 
-## `AcceptedSecretArns` → `SecretIds`
+### `AcceptedSecretArns` → `SecretIds`
 
 The `AcceptedSecretArns` property has been renamed to `SecretIds`. It is now a `List<string>`, so use `.Add()` rather than assignment.
 
@@ -26,7 +117,7 @@ options.AcceptedSecretArns = new List<string> { "arn:..." };
 options.SecretIds.Add("arn:...");
 ```
 
-## `PollingInterval` → `ReloadInterval`
+### `PollingInterval` → `ReloadInterval`
 
 ```csharp
 // Before
@@ -36,7 +127,7 @@ options.PollingInterval = TimeSpan.FromMinutes(5);
 options.ReloadInterval = TimeSpan.FromMinutes(5);
 ```
 
-## `SecretsManagerConfigurationSource` is now `internal`
+### `SecretsManagerConfigurationSource` is now `internal`
 
 `SecretsManagerConfigurationSource` was `public` in 1.x. It is now `internal` in 2.0. Any code that referenced this type directly will no longer compile.
 
@@ -53,7 +144,7 @@ builder.AddSecretsManager(options => { ... });
 
 If you were constructing or referencing the source directly (e.g., in integration tests), switch to `AddSecretsManager` instead.
 
-## `AddSecretsManager` overloads changed
+### `AddSecretsManager` overloads changed
 
 The old overload accepting `AWSCredentials?` and `RegionEndpoint?` has been removed:
 
@@ -75,7 +166,7 @@ builder.AddSecretsManager(awsOptions, options => { ... });
 builder.AddSecretsManager(client, options => { ... });
 ```
 
-## `CreateClient` and `ConfigureSecretsManagerConfig` hooks removed
+### `CreateClient` and `ConfigureSecretsManagerConfig` hooks removed
 
 The `SecretsManagerConfigurationProviderOptions.CreateClient` factory and `ConfigureSecretsManagerConfig` callback were the 1.x escape hatches for advanced client configuration (custom service URL, timeouts, LocalStack, etc.). Both have been removed in 2.0.
 
@@ -121,7 +212,7 @@ var awsOptions = builder.Configuration.GetAWSOptions();
 builder.AddSecretsManager(awsOptions, options => { ... });
 ```
 
-## Public namespace for exception and context types
+### Public namespace for exception and context types
 
 `MissingSecretValueException` and `SecretValueContext` have been moved from the `Kralizek.Extensions.Configuration.Internal` namespace to `Kralizek.Extensions.Configuration`.
 
@@ -133,11 +224,11 @@ using Kralizek.Extensions.Configuration.Internal;
 using Kralizek.Extensions.Configuration;
 ```
 
-## Newtonsoft.Json removed
+### Newtonsoft.Json removed
 
 The package no longer depends on Newtonsoft.Json. JSON parsing is now done with `System.Text.Json`.
 
-## `DuplicateKeyHandling` enum added (behavior change)
+### `DuplicateKeyHandling` enum added (behavior change)
 
 `DuplicateKeyHandling` is new in 2.0. It controls what happens when two secrets produce the same configuration key.
 
@@ -149,7 +240,7 @@ options.DuplicateKeyHandling = DuplicateKeyHandling.FirstWins;
 options.DuplicateKeyHandling = DuplicateKeyHandling.Throw;
 ```
 
-## New logging infrastructure
+### New logging infrastructure
 
 A structured logging pipeline has been added:
 
@@ -159,7 +250,7 @@ A structured logging pipeline has been added:
 - `options.UseLogging(ILogger)` — convenience extension
 - `options.UseBootstrapLogging(ILoggerFactory)` — bootstrap logging before DI is ready
 
-## `ListSecretsFilters` is a `List<Filter>`
+### `ListSecretsFilters` is a `List<Filter>`
 
 `ListSecretsFilters` is now a read-only `List<Filter>` property. Use `.Add()` rather than assigning a new list.
 

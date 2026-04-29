@@ -2,6 +2,6 @@ using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
 
-builder.AddSecretsManager();
+builder.AddSecretsManagerDiscovery();
 
 var configuration = builder.Build();

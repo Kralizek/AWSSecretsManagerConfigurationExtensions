@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
 
-builder.AddSecretsManager(options =>
+builder.AddSecretsManagerDiscovery(options =>
 {
     options.DuplicateKeyHandling = DuplicateKeyHandling.LastWins;
 });

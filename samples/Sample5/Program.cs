@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
 
-builder.AddSecretsManager(options =>
+builder.AddSecretsManagerDiscovery(options =>
 {
     options.KeyGenerator = (entry, key) => key.ToUpper();
 });
