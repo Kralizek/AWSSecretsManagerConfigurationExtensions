@@ -59,6 +59,22 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
+        public void Batch_mode_logs_SecretSkipped_for_filtered_secrets([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerDiscoveryOptions options, SecretsManagerDiscoveryConfigurationProvider sut, IFixture fixture)
+        {
+            Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
+            options.UseBatchFetch = true;
+            options.SecretFilter = entry => false;
+
+            var loggedEvents = new List<SecretsManagerLogEvent>();
+            options.LogEvent = e => loggedEvents.Add(e);
+
+            sut.Load();
+
+            Assert.That(loggedEvents, Has.Some.Matches<SecretsManagerLogEvent>(
+                e => e.EventId == SecretsManagerLogEvents.SecretSkipped));
+        }
+
+        [Test, CustomAutoData]
         public void Keys_can_be_customized_via_options([Frozen] SecretListEntry testEntry, ListSecretsResponse listSecretsResponse, GetSecretValueResponse getSecretValueResponse, string newKey, [Frozen] IAmazonSecretsManager secretsManager, [Frozen] SecretsManagerDiscoveryOptions options, SecretsManagerDiscoveryConfigurationProvider sut, IFixture fixture)
         {
             options.UseBatchFetch = false;

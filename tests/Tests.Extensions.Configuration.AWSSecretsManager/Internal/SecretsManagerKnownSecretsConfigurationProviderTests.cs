@@ -298,6 +298,29 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
+        public void Batch_partial_ARN_throws_on_ambiguous_match([Frozen] IAmazonSecretsManager secretsManager, IFixture fixture)
+        {
+            // The partial ARN prefix matches two distinct secrets — should throw rather than silently picking one
+            const string partialArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret";
+
+            var batchResponse = fixture.Build<BatchGetSecretValueResponse>()
+                .With(p => p.SecretValues, new List<SecretValueEntry>
+                {
+                    new SecretValueEntry { ARN = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf", Name = "my-secret-1", SecretString = "v1" },
+                    new SecretValueEntry { ARN = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-XyZwVu", Name = "my-secret-2", SecretString = "v2" }
+                })
+                .With(p => p.Errors, new List<APIErrorType>())
+                .Without(p => p.NextToken)
+                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(batchResponse);
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { partialArn }, new SecretsManagerKnownSecretsOptions());
+
+            Assert.That(sut.Load, Throws.TypeOf<InvalidOperationException>());
+        }
+
+        [Test, CustomAutoData]
         public void Should_throw_on_batch_errors([Frozen] IAmazonSecretsManager secretsManager, IFixture fixture)
         {
             var batchResponse = fixture.Build<BatchGetSecretValueResponse>()

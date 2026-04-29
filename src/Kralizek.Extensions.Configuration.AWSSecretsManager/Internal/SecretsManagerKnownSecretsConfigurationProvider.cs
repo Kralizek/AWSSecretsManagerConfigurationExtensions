@@ -97,6 +97,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                 try
                 {
+                    var responseEntries = new List<SecretValueEntry>();
                     var responseMap = new Dictionary<string, SecretValueEntry>(StringComparer.OrdinalIgnoreCase);
 
                     BatchGetSecretValueResponse? secretValueSet = null;
@@ -113,6 +114,7 @@ namespace Kralizek.Extensions.Configuration.Internal
 
                         foreach (var sv in secretValueSet.SecretValues)
                         {
+                            responseEntries.Add(sv);
                             if (!string.IsNullOrEmpty(sv.ARN))
                                 responseMap[sv.ARN] = sv;
                             if (!string.IsNullOrEmpty(sv.Name))
@@ -127,10 +129,22 @@ namespace Kralizek.Extensions.Configuration.Internal
                     {
                         if (!responseMap.TryGetValue(secretId, out var secretValue))
                         {
-                            // Partial-ARN fallback: the caller may have supplied a prefix of the full ARN
-                            secretValue = responseMap.Values
-                                .FirstOrDefault(sv => !string.IsNullOrEmpty(sv.ARN)
-                                    && sv.ARN.StartsWith(secretId, StringComparison.OrdinalIgnoreCase));
+                            // Partial-ARN fallback: the caller may have supplied a prefix of the full ARN.
+                            // Use responseEntries (not responseMap.Values) to avoid duplicate matches
+                            // caused by the same entry being indexed by both ARN and Name.
+                            var matches = responseEntries
+                                .Where(sv => !string.IsNullOrEmpty(sv.ARN)
+                                    && sv.ARN.StartsWith(secretId, StringComparison.OrdinalIgnoreCase))
+                                .ToList();
+
+                            if (matches.Count > 1)
+                            {
+                                var matchedArns = string.Join(", ", matches.Select(m => m.ARN));
+                                throw new InvalidOperationException(
+                                    $"Ambiguous partial ARN '{secretId}' matched {matches.Count} secrets: {matchedArns}. Use a more specific identifier.");
+                            }
+
+                            secretValue = matches.Count == 1 ? matches[0] : null;
                         }
 
                         if (secretValue is null)

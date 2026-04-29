@@ -130,6 +130,23 @@ var client = new AmazonSecretsManagerClient(credentials, config);
 builder.AddSecretsManagerDiscovery(client, options => { ... });
 ```
 
+### Note for 2.0 preview users (`SecretIds` on options)
+
+If you tried an early 2.0 beta build that exposed a `SecretIds` property on the options class, that property has been removed. Use the dedicated methods instead:
+
+```csharp
+// Early 2.0 preview (no longer supported)
+builder.AddSecretsManager(options =>
+{
+    options.SecretIds = new[] { "my-secret-1", "my-secret-2" };
+});
+
+// Current API
+builder.AddSecretsManagerKnownSecrets(new[] { "my-secret-1", "my-secret-2" });
+// or, for a single secret:
+builder.AddSecretsManagerKnownSecret("my-secret-1");
+```
+
 ### `CreateClient` and `ConfigureSecretsManagerConfig` hooks removed
 
 The `CreateClient` factory and `ConfigureSecretsManagerConfig` callback have been removed. Use the `IAmazonSecretsManager` overload to pass a fully-configured client:

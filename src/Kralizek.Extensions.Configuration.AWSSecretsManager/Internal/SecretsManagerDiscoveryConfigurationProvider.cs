@@ -114,7 +114,19 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
             var dict = new Dictionary<string, string?>(StringComparer.InvariantCultureIgnoreCase);
-            var filtered = secrets.Where(_options.SecretFilter).ToList();
+
+            var filtered = new List<SecretListEntry>();
+            foreach (var secret in secrets)
+            {
+                if (!_options.SecretFilter(secret))
+                {
+                    Log(LogLevel.Debug, SecretsManagerLogEvents.SecretSkipped,
+                        "Secret {SecretName} skipped by filter.", args: secret.Name);
+                    continue;
+                }
+                filtered.Add(secret);
+            }
+
             var chunked = SecretsManagerHelpers.ChunkList(filtered, 20);
 
             foreach (var secretSet in chunked)

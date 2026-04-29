@@ -195,7 +195,7 @@ myapp/database:Port = 5432
 
 ## No Caching
 
-The provider always fetches fresh values from AWS Secrets Manager when `Load()` or a reload is triggered. There is no in-memory cache layer — this is intentional so that your application always reflects the current secret state.
+The provider fetches values from AWS Secrets Manager on each `Load()` call and on every configured reload. There is no in-memory cache layer between reloads — secrets are not re-fetched until the next explicit load or scheduled reload fires.
 
 ---
 
