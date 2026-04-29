@@ -119,6 +119,24 @@ builder.AddSecretsManagerKnownSecret(client,     "my-app/prod");
 
 ---
 
+## Multiple Registrations
+
+You can call any combination of the three methods multiple times on the same builder. Each registration adds an independent provider that loads independently. This is useful when you need to combine different access patterns — for example, loading a shared set of secrets by discovery alongside a single high-privilege secret fetched directly:
+
+```csharp
+builder
+    .AddSecretsManagerDiscovery(options =>
+    {
+        options.SecretFilter = entry => entry.Name.StartsWith("myapp/shared/");
+    })
+    .AddSecretsManagerKnownSecret("myapp/high-privilege-secret")
+    .AddSecretsManagerKnownSecrets(new[] { "myapp/db", "myapp/api-key" });
+```
+
+Later registrations take precedence over earlier ones when the same configuration key appears in more than one provider (standard `Microsoft.Extensions.Configuration` behaviour). Within a single provider, use `DuplicateKeyHandling` to control conflicts between secrets resolved by that provider.
+
+---
+
 ## Duplicate Key Handling
 
 When two secrets produce the same configuration key, control the conflict resolution:
