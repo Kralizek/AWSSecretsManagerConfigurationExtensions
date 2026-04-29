@@ -6,7 +6,7 @@ Version 2.0 replaces the single `AddSecretsManager` API with three explicit, pur
 
 ### `AddSecretsManager` removed
 
-`AddSecretsManager` and `SecretsManagerOptions` have been **removed**. Choose the method that matches your use case:
+`AddSecretsManager` has been **removed**. Choose the method that matches your use case:
 
 #### Discovery — load all secrets via `ListSecrets`
 
@@ -30,8 +30,7 @@ builder.AddSecretsManagerDiscovery(options => { options.SecretFilter = ...; });
 // Before
 builder.AddSecretsManager(options =>
 {
-    options.SecretIds.Add("my-secret-1");
-    options.SecretIds.Add("my-secret-2");
+    options.AcceptedSecretArns = new List<string> { "my-secret-1", "my-secret-2" };
 });
 
 // After
@@ -44,22 +43,22 @@ builder.AddSecretsManagerKnownSecrets(new[] { "my-secret-1", "my-secret-2" });
 // Before
 builder.AddSecretsManager(options =>
 {
-    options.SecretIds.Add("my-app/prod");
+    options.AcceptedSecretArns = new List<string> { "my-app/prod" };
 });
 
 // After
 builder.AddSecretsManagerKnownSecret("my-app/prod");
 ```
 
-### `SecretsManagerOptions` removed
+### Options class replaced
 
-`SecretsManagerOptions` has been replaced by three separate options classes:
+`SecretsManagerConfigurationProviderOptions` has been replaced by three separate options classes:
 
 | Old | New |
 |---|---|
-| `SecretsManagerOptions` (with `SecretFilter`, `KeyGenerator`, etc.) | `SecretsManagerDiscoveryOptions` |
-| `SecretsManagerOptions` (with `SecretIds`) | `SecretsManagerKnownSecretsOptions` |
-| `SecretsManagerOptions` (with a single `SecretIds` entry) | `SecretsManagerKnownSecretOptions` |
+| `SecretsManagerConfigurationProviderOptions` (with `SecretFilter`, `KeyGenerator`, etc.) | `SecretsManagerDiscoveryOptions` |
+| `SecretsManagerConfigurationProviderOptions` (with `AcceptedSecretArns`) | `SecretsManagerKnownSecretsOptions` |
+| `SecretsManagerConfigurationProviderOptions` (with a single `AcceptedSecretArns` entry) | `SecretsManagerKnownSecretOptions` |
 
 Options are configured via the lambda overloads of each method:
 
@@ -68,8 +67,7 @@ Options are configured via the lambda overloads of each method:
 builder.AddSecretsManager(options =>
 {
     options.KeyGenerator = (entry, key) => key.ToUpper();
-    options.ReloadInterval = TimeSpan.FromMinutes(5);
-    options.UseBootstrapLogging(loggerFactory);
+    options.PollingInterval = TimeSpan.FromMinutes(5);
 });
 
 // After
@@ -77,21 +75,16 @@ builder.AddSecretsManagerDiscovery(options =>
 {
     options.KeyGenerator = (entry, key) => key.ToUpper();
     options.ReloadInterval = TimeSpan.FromMinutes(5);
-    options.UseBootstrapLogging(loggerFactory);
 });
 ```
 
 ### `IgnoreMissingValues` removed
 
-`SecretsManagerOptions.IgnoreMissingValues` has been removed with no replacement. All three providers now throw `MissingSecretValueException` when a secret cannot be found.
-
-### `SecretsManagerConfigurationProviderOptions` renamed then removed
-
-`SecretsManagerConfigurationProviderOptions` was renamed to `SecretsManagerOptions` in a beta release, then removed entirely in 2.0. Migrate directly to the three new options classes shown above.
+`SecretsManagerConfigurationProviderOptions.IgnoreMissingValues` has been removed with no replacement. All three providers now throw `MissingSecretValueException` when a secret cannot be found.
 
 ### `AcceptedSecretArns` removed
 
-The `AcceptedSecretArns` property (renamed `SecretIds` in a beta release) has been removed. Use `AddSecretsManagerKnownSecret` or `AddSecretsManagerKnownSecrets` instead.
+`SecretsManagerConfigurationProviderOptions.AcceptedSecretArns` has been removed. Use `AddSecretsManagerKnownSecret` or `AddSecretsManagerKnownSecrets` instead (see above).
 
 ### `PollingInterval` → `ReloadInterval`
 
@@ -116,7 +109,7 @@ builder.Add(source);
 builder.AddSecretsManagerDiscovery(options => { ... });
 ```
 
-### `AddSecretsManager` overloads changed
+### Credentials / region overload removed
 
 The old overload accepting `AWSCredentials?` and `RegionEndpoint?` has been removed:
 
@@ -197,15 +190,11 @@ A structured logging pipeline has been added:
 - `options.UseLogging(ILogger)` — convenience extension
 - `options.UseBootstrapLogging(ILoggerFactory)` — bootstrap logging before DI is ready
 
-### `ListSecretsFilters` is a `List<Filter>`
+### `ListSecretsFilters` added
 
-`ListSecretsFilters` (on `SecretsManagerDiscoveryOptions`) is a `List<Filter>`. Use `.Add()` rather than assigning a new list.
+`SecretsManagerDiscoveryOptions` exposes a `ListSecretsFilters` property for applying server-side filters to the `ListSecrets` call. Use `.Add()` to populate it:
 
 ```csharp
-// Before
-options.ListSecretsFilters = new List<Filter> { ... };
-
-// After
-options.ListSecretsFilters.Add(new Filter { ... });
+options.ListSecretsFilters.Add(new Filter { Key = FilterNameStringType.Name, Values = new List<string> { "myapp/" } });
 ```
 
