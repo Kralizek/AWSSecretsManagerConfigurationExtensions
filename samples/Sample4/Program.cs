@@ -2,11 +2,11 @@ using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();
 
-builder.AddSecretsManager(options =>
+builder.AddSecretsManagerKnownSecrets(new[]
 {
-    options.SecretIds.Add("MySecretFullARN-abcxyz");
-    options.SecretIds.Add("MySecretPartialARN");
-    options.SecretIds.Add("MySecretUniqueName");
+    "MySecretFullARN-abcxyz",
+    "MySecretPartialARN",
+    "MySecretUniqueName"
 });
 
 var configuration = builder.Build();

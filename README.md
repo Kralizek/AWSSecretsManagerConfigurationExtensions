@@ -11,75 +11,138 @@ AWS Secrets Manager configuration provider for `Microsoft.Extensions.Configurati
 dotnet add package Kralizek.Extensions.Configuration.AWSSecretsManager
 ```
 
-## Basic Usage
+## Choosing a Mode
+
+The library provides three explicit loading modes. Pick the one that matches your access pattern:
+
+| Mode | Extension method | AWS API | Best for |
+|---|---|---|---|
+| **Discovery** | `AddSecretsManagerDiscovery` | `ListSecrets` + `BatchGetSecretValue` | Load all secrets in an account/region |
+| **KnownSecrets** | `AddSecretsManagerKnownSecrets` | `BatchGetSecretValue` | Load a fixed set of known secrets |
+| **KnownSecret** | `AddSecretsManagerKnownSecret` | `GetSecretValue` | Load exactly one secret |
+
+---
+
+## Discovery Mode
+
+Discover and load all secrets returned by `ListSecrets`, then batch-fetch their values.
 
 ```csharp
-var builder = new ConfigurationBuilder();
+// Minimal — use default AWS credentials and region
+builder.AddSecretsManagerDiscovery();
 
-builder.AddSecretsManager();
-
-var configuration = builder.Build();
-```
-
-## With AWSOptions
-
-```csharp
-using Amazon.Extensions.NETCore.Setup;
-
+// With AWSOptions (region, profile, credentials)
 var awsOptions = new AWSOptions { Region = Amazon.RegionEndpoint.EUWest1 };
-builder.AddSecretsManager(awsOptions);
-```
+builder.AddSecretsManagerDiscovery(awsOptions);
 
-## With a Direct Client
-
-```csharp
-using Amazon.SecretsManager;
-
+// With a pre-built client
 var client = new AmazonSecretsManagerClient(RegionEndpoint.EUWest1);
-builder.AddSecretsManager(client);
+builder.AddSecretsManagerDiscovery(client);
 ```
 
-## Explicit Secret IDs
+### Filtering discovered secrets
 
-Instead of listing all secrets, specify exact ARNs or names:
-
-```csharp
-builder.AddSecretsManager(options =>
-{
-    options.SecretIds.Add("MySecretFullARN-abcxyz");
-    options.SecretIds.Add("MySecretPartialARN");
-    options.SecretIds.Add("MySecretUniqueName");
-});
-```
-
-## Secret Filtering
-
-Filter secrets discovered via `ListSecrets`:
+Use `SecretFilter` to skip secrets you don't need, or `ListSecretsFilters` to apply server-side filters:
 
 ```csharp
-builder.AddSecretsManager(options =>
+builder.AddSecretsManagerDiscovery(options =>
 {
+    // Client-side filter
     options.SecretFilter = entry => entry.Name.StartsWith("myapp/");
+
+    // Server-side filters (reduce ListSecrets results at the API level)
+    options.ListSecretsFilters.Add(new Filter
+    {
+        Key = FilterNameStringType.Name,
+        Values = new List<string> { "myapp/" }
+    });
 });
 ```
 
-## Key Generator
+### Key customization
 
-Customize how secret names become configuration keys:
+Control how secret names and JSON property paths become configuration keys:
 
 ```csharp
-builder.AddSecretsManager(options =>
+builder.AddSecretsManagerDiscovery(options =>
 {
     options.KeyGenerator = (entry, key) => key.Replace("/", ":");
 });
 ```
 
-## Duplicate Key Handling
+### Batch vs. individual fetch
 
-Control behaviour when two secrets produce the same configuration key:
+Discovery mode uses `BatchGetSecretValue` by default. To fall back to one `GetSecretValue` call per secret:
 
 ```csharp
-builder.AddSecretsManager(options =>
+builder.AddSecretsManagerDiscovery(options =>
+{
+    options.UseBatchFetch = false;
+});
+```
+
+---
+
+## KnownSecrets Mode
+
+Fetch a fixed list of secrets by ARN or name using `BatchGetSecretValue`. No `ListSecrets` call is made.
+
+```csharp
+builder.AddSecretsManagerKnownSecrets(new[]
+{
+    "MySecretFullARN-abcxyz",
+    "MySecretPartialARN",
+    "MySecretUniqueName"
+});
+```
+
+With `AWSOptions` or a custom client:
+
+```csharp
+builder.AddSecretsManagerKnownSecrets(awsOptions, new[] { "my-app/db", "my-app/api-key" });
+builder.AddSecretsManagerKnownSecrets(client,     new[] { "my-app/db", "my-app/api-key" });
+```
+
+---
+
+## KnownSecret Mode
+
+Load exactly one secret by ARN or name using `GetSecretValue`. No `ListSecrets` or batch call is made.
+
+```csharp
+builder.AddSecretsManagerKnownSecret("my-app/prod");
+
+// With AWSOptions or a custom client
+builder.AddSecretsManagerKnownSecret(awsOptions, "my-app/prod");
+builder.AddSecretsManagerKnownSecret(client,     "my-app/prod");
+```
+
+---
+
+## Multiple Registrations
+
+You can call any combination of the three methods multiple times on the same builder. Each registration adds an independent provider that loads independently. This is useful when you need to combine different access patterns — for example, loading a shared set of secrets by discovery alongside a single high-privilege secret fetched directly:
+
+```csharp
+builder
+    .AddSecretsManagerDiscovery(options =>
+    {
+        options.SecretFilter = entry => entry.Name.StartsWith("myapp/shared/");
+    })
+    .AddSecretsManagerKnownSecret("myapp/high-privilege-secret")
+    .AddSecretsManagerKnownSecrets(new[] { "myapp/db", "myapp/api-key" });
+```
+
+Later registrations take precedence over earlier ones when the same configuration key appears in more than one provider (standard `Microsoft.Extensions.Configuration` behaviour). Within a single provider, use `DuplicateKeyHandling` to control conflicts between secrets resolved by that provider.
+
+---
+
+## Duplicate Key Handling
+
+When two secrets produce the same configuration key, control the conflict resolution:
+
+```csharp
+builder.AddSecretsManagerDiscovery(options =>
 {
     options.DuplicateKeyHandling = DuplicateKeyHandling.LastWins;  // default
     // options.DuplicateKeyHandling = DuplicateKeyHandling.FirstWins;
@@ -87,16 +150,20 @@ builder.AddSecretsManager(options =>
 });
 ```
 
+---
+
 ## Reload / Polling
 
 Re-fetch secrets on a schedule:
 
 ```csharp
-builder.AddSecretsManager(options =>
+builder.AddSecretsManagerDiscovery(options =>
 {
     options.ReloadInterval = TimeSpan.FromMinutes(5);
 });
 ```
+
+---
 
 ## Bootstrap Logging
 
@@ -105,15 +172,32 @@ Attach a logger during startup before the DI container is built:
 ```csharp
 using var loggerFactory = LoggerFactory.Create(b => b.AddConsole());
 
-builder.AddSecretsManager(options =>
+builder.AddSecretsManagerDiscovery(options =>
 {
     options.UseBootstrapLogging(loggerFactory);
 });
 ```
 
+---
+
+## JSON Secret Flattening
+
+Secrets whose value is a JSON object are automatically flattened into configuration key/value pairs using `:` as the separator, rooted at the secret's name.
+
+For example, a secret named `myapp/database` with value `{"Host":"db.example.com","Port":"5432"}` produces:
+
+```
+myapp/database:Host = db.example.com
+myapp/database:Port = 5432
+```
+
+---
+
 ## No Caching
 
-The provider always fetches fresh values from AWS Secrets Manager when `Load()` or a reload is triggered. There is no in-memory cache layer — this is intentional so that your application always reflects the current secret state.
+The provider fetches values from AWS Secrets Manager on each `Load()` call and on every configured reload. There is no in-memory cache layer between reloads — secrets are not re-fetched until the next explicit load or scheduled reload fires.
+
+---
 
 ## Amazon Elastic Kubernetes Service (EKS)
 
@@ -125,9 +209,13 @@ This feature requires an additional package loaded by reflection:
 dotnet add package AWSSDK.SecurityToken
 ```
 
-## Migration from 1.x
+---
+
+## Migration from earlier versions
 
 See [MIGRATION.md](MIGRATION.md) for the list of breaking changes.
+
+---
 
 ## Mentions by the community
 

@@ -2,7 +2,7 @@ using Kralizek.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddSecretsManager(options =>
+builder.Configuration.AddSecretsManagerDiscovery(options =>
 {
     options.ReloadInterval = TimeSpan.FromSeconds(10);
 });

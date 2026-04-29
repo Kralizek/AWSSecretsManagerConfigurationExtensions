@@ -40,7 +40,9 @@ namespace Tests
                 GenerateDelegates = true
             });
 
-            fixture.Customize<SecretsManagerOptions>(o => o.OmitAutoProperties());
+            fixture.Customize<SecretsManagerDiscoveryOptions>(o => o.OmitAutoProperties());
+            fixture.Customize<SecretsManagerKnownSecretOptions>(o => o.OmitAutoProperties());
+            fixture.Customize<SecretsManagerKnownSecretsOptions>(o => o.OmitAutoProperties());
 
             fixture.Customize<MemoryStream>(c =>
             {

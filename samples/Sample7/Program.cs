@@ -9,10 +9,9 @@ using var bootstrapLoggerFactory = LoggerFactory.Create(logging =>
 
 var builder = new ConfigurationBuilder();
 
-builder.AddSecretsManager(options =>
+builder.AddSecretsManagerKnownSecret("my-app/prod", options =>
 {
     options.UseBootstrapLogging(bootstrapLoggerFactory);
-    options.SecretIds.Add("my-app/prod");
 });
 
 var configuration = builder.Build();
