@@ -237,12 +237,17 @@ namespace Tests.Internal
 
             var options = new SecretsManagerKnownSecretOptions { ReloadInterval = TimeSpan.FromMilliseconds(100) };
             var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, secretName, options);
-            sut.GetReloadToken().RegisterChangeCallback(changeCallback, changeCallbackState);
+            using var reloadEvent = new ManualResetEventSlim();
+            sut.GetReloadToken().RegisterChangeCallback(state =>
+            {
+                changeCallback(state);
+                reloadEvent.Set();
+            }, changeCallbackState);
 
             sut.Load();
             Assert.That(sut.Get(secretName), Is.EqualTo("initial"));
 
-            Thread.Sleep(200);
+            Assert.That(reloadEvent.Wait(TimeSpan.FromSeconds(5)), Is.True, "Expected reload callback to be invoked within 5 seconds.");
 
             Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
             Assert.That(sut.Get(secretName), Is.EqualTo("updated"));

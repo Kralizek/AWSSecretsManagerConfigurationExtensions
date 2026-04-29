@@ -111,10 +111,15 @@ namespace Tests.Internal
             Mock.Get(secretsManager).SetupSequence(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(initial).ReturnsAsync(updated);
             options.ReloadInterval = TimeSpan.FromMilliseconds(100);
-            sut.GetReloadToken().RegisterChangeCallback(changeCallback, changeCallbackState);
+            using var reloadEvent = new ManualResetEventSlim();
+            sut.GetReloadToken().RegisterChangeCallback(state =>
+            {
+                changeCallback(state);
+                reloadEvent.Set();
+            }, changeCallbackState);
             sut.Load();
             Assert.That(sut.Get(testEntry.Name), Is.EqualTo(initial.SecretString));
-            Thread.Sleep(200);
+            Assert.That(reloadEvent.Wait(TimeSpan.FromSeconds(5)), Is.True, "Expected reload callback to be invoked within 5 seconds.");
             Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
             Assert.That(sut.Get(testEntry.Name), Is.EqualTo(updated.SecretString));
         }

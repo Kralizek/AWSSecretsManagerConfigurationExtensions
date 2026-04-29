@@ -257,6 +257,47 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
+        public void Should_throw_MissingSecretValueException_when_secret_absent_from_batch_response([Frozen] IAmazonSecretsManager secretsManager, IFixture fixture)
+        {
+            // The batch response returns "other-secret" but the configured id is "my-secret"
+            var batchResponse = fixture.Build<BatchGetSecretValueResponse>()
+                .With(p => p.SecretValues, new List<SecretValueEntry> { new SecretValueEntry { ARN = "arn:other", Name = "other-secret", SecretString = "v" } })
+                .With(p => p.Errors, new List<APIErrorType>())
+                .Without(p => p.NextToken)
+                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(batchResponse);
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { "my-secret" }, new SecretsManagerKnownSecretsOptions());
+
+            Assert.That(sut.Load, Throws.TypeOf<MissingSecretValueException>());
+        }
+
+        [Test, CustomAutoData]
+        public void Batch_values_resolved_by_partial_ARN([Frozen] IAmazonSecretsManager secretsManager, IFixture fixture)
+        {
+            // Caller supplies a partial ARN; the batch response returns a full ARN that starts with it
+            const string partialArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret";
+            const string fullArn    = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+
+            var batchResponse = fixture.Build<BatchGetSecretValueResponse>()
+                .With(p => p.SecretValues, new List<SecretValueEntry>
+                {
+                    new SecretValueEntry { ARN = fullArn, Name = "my-secret", SecretString = "secret-value" }
+                })
+                .With(p => p.Errors, new List<APIErrorType>())
+                .Without(p => p.NextToken)
+                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(batchResponse);
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { partialArn }, new SecretsManagerKnownSecretsOptions());
+            sut.Load();
+
+            Assert.That(sut.Get("my-secret"), Is.EqualTo("secret-value"));
+        }
+
+        [Test, CustomAutoData]
         public void Should_throw_on_batch_errors([Frozen] IAmazonSecretsManager secretsManager, IFixture fixture)
         {
             var batchResponse = fixture.Build<BatchGetSecretValueResponse>()
@@ -284,12 +325,17 @@ namespace Tests.Internal
 
             var options = new SecretsManagerKnownSecretsOptions { UseBatchFetch = false, ReloadInterval = TimeSpan.FromMilliseconds(100) };
             var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { secretName }, options);
-            sut.GetReloadToken().RegisterChangeCallback(changeCallback, changeCallbackState);
+            using var reloadEvent = new ManualResetEventSlim();
+            sut.GetReloadToken().RegisterChangeCallback(state =>
+            {
+                changeCallback(state);
+                reloadEvent.Set();
+            }, changeCallbackState);
 
             sut.Load();
             Assert.That(sut.Get(secretName), Is.EqualTo("initial"));
 
-            Thread.Sleep(200);
+            Assert.That(reloadEvent.Wait(TimeSpan.FromSeconds(5)), Is.True, "Expected reload callback to be invoked within 5 seconds.");
 
             Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
             Assert.That(sut.Get(secretName), Is.EqualTo("updated"));

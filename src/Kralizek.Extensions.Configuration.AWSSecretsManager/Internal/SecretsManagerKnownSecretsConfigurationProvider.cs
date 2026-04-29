@@ -120,11 +120,25 @@ namespace Kralizek.Extensions.Configuration.Internal
                         }
                     } while (!string.IsNullOrWhiteSpace(secretValueSet.NextToken));
 
-                    // Process in the order of configured secretIds to respect consumer-supplied ordering
+                    // Process in the order of configured secretIds to respect consumer-supplied ordering.
+                    // A configured id may be a short name, a full ARN, or a partial ARN, so we fall back
+                    // to a prefix match against the full ARN when an exact lookup misses.
                     foreach (var secretId in secretIdSet)
                     {
                         if (!responseMap.TryGetValue(secretId, out var secretValue))
-                            continue;
+                        {
+                            // Partial-ARN fallback: the caller may have supplied a prefix of the full ARN
+                            secretValue = responseMap.Values
+                                .FirstOrDefault(sv => !string.IsNullOrEmpty(sv.ARN)
+                                    && sv.ARN.StartsWith(secretId, StringComparison.OrdinalIgnoreCase));
+                        }
+
+                        if (secretValue is null)
+                        {
+                            throw new MissingSecretValueException(
+                                $"Error retrieving secret value (SecretId: {secretId})", secretId, secretId,
+                                new ResourceNotFoundException($"Secret '{secretId}' was not found in the batch response."));
+                        }
 
                         var rootKey = !string.IsNullOrEmpty(secretValue.Name) ? secretValue.Name : secretId;
                         var secretEntry = new SecretListEntry { ARN = secretValue.ARN, Name = rootKey };
@@ -137,11 +151,12 @@ namespace Kralizek.Extensions.Configuration.Internal
                     }
                 }
                 catch (AggregateException) { throw; }
+                catch (MissingSecretValueException) { throw; }
                 catch (ResourceNotFoundException e)
                 {
-                    var names = string.Join(",", secretIdSet);
+                    var configuredIds = string.Join(",", secretIdSet);
                     throw new MissingSecretValueException(
-                        $"Error retrieving secret value (Secrets: {names} Arns: {names})", names, names, e);
+                        $"Error retrieving secret value (Configured secret ids: {configuredIds})", configuredIds, configuredIds, e);
                 }
             }
 
