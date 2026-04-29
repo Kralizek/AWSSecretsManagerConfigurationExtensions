@@ -1,8 +1,8 @@
 # Migration Guide
 
-## 2.x → 3.0
+## 1.x → 2.0
 
-Version 3.0 replaces the single `AddSecretsManager` API with three explicit, purpose-built methods. This is a **breaking change**: all call sites must be updated.
+Version 2.0 replaces the single `AddSecretsManager` API with three explicit, purpose-built methods. This is a **breaking change**: all call sites must be updated.
 
 ### `AddSecretsManager` removed
 
@@ -85,37 +85,13 @@ builder.AddSecretsManagerDiscovery(options =>
 
 `SecretsManagerOptions.IgnoreMissingValues` has been removed with no replacement. All three providers now throw `MissingSecretValueException` when a secret cannot be found.
 
-### `SecretIds` removed from options
+### `SecretsManagerConfigurationProviderOptions` renamed then removed
 
-`SecretsManagerOptions.SecretIds` has been removed. Use `AddSecretsManagerKnownSecret` or `AddSecretsManagerKnownSecrets` instead (see above).
+`SecretsManagerConfigurationProviderOptions` was renamed to `SecretsManagerOptions` in a beta release, then removed entirely in 2.0. Migrate directly to the three new options classes shown above.
 
----
+### `AcceptedSecretArns` removed
 
-## 1.x → 2.0
-
-### Options class renamed
-
-`SecretsManagerConfigurationProviderOptions` has been **removed**. Use `SecretsManagerOptions` instead.
-
-```csharp
-// Before
-var options = new SecretsManagerConfigurationProviderOptions();
-
-// After
-var options = new SecretsManagerOptions();
-```
-
-### `AcceptedSecretArns` → `SecretIds`
-
-The `AcceptedSecretArns` property has been renamed to `SecretIds`. It is now a `List<string>`, so use `.Add()` rather than assignment.
-
-```csharp
-// Before
-options.AcceptedSecretArns = new List<string> { "arn:..." };
-
-// After
-options.SecretIds.Add("arn:...");
-```
+The `AcceptedSecretArns` property (renamed `SecretIds` in a beta release) has been removed. Use `AddSecretsManagerKnownSecret` or `AddSecretsManagerKnownSecrets` instead.
 
 ### `PollingInterval` → `ReloadInterval`
 
@@ -123,26 +99,22 @@ options.SecretIds.Add("arn:...");
 // Before
 options.PollingInterval = TimeSpan.FromMinutes(5);
 
-// After
+// After (on any of the three options classes)
 options.ReloadInterval = TimeSpan.FromMinutes(5);
 ```
 
 ### `SecretsManagerConfigurationSource` is now `internal`
 
-`SecretsManagerConfigurationSource` was `public` in 1.x. It is now `internal` in 2.0. Any code that referenced this type directly will no longer compile.
-
-This is an intentional API reduction: the source is an implementation detail of `AddSecretsManager` and is not part of the public contract.
+`SecretsManagerConfigurationSource` was `public` in 1.x. It is now `internal`. Any code that referenced this type directly will no longer compile — use the extension methods instead.
 
 ```csharp
-// Before (1.x) — no longer compiles in 2.0
+// Before (1.x) — no longer compiles
 var source = new SecretsManagerConfigurationSource(options);
 builder.Add(source);
 
-// After — use the AddSecretsManager extension
-builder.AddSecretsManager(options => { ... });
+// After
+builder.AddSecretsManagerDiscovery(options => { ... });
 ```
-
-If you were constructing or referencing the source directly (e.g., in integration tests), switch to `AddSecretsManager` instead.
 
 ### `AddSecretsManager` overloads changed
 
@@ -153,68 +125,46 @@ The old overload accepting `AWSCredentials?` and `RegionEndpoint?` has been remo
 builder.AddSecretsManager(credentials, region, configurator);
 ```
 
-New overloads:
+Use `AWSOptions` or pass a pre-built `IAmazonSecretsManager` client instead:
 
 ```csharp
-// No-arg / configure-only
-builder.AddSecretsManager(options => { ... });
+var awsOptions = builder.Configuration.GetAWSOptions();
+builder.AddSecretsManagerDiscovery(awsOptions, options => { ... });
 
-// With AWSOptions
-builder.AddSecretsManager(awsOptions, options => { ... });
-
-// With a pre-built IAmazonSecretsManager client
-builder.AddSecretsManager(client, options => { ... });
+// Or with a pre-built client
+var config = new AmazonSecretsManagerConfig { ServiceURL = "http://localhost:4566" };
+var client = new AmazonSecretsManagerClient(credentials, config);
+builder.AddSecretsManagerDiscovery(client, options => { ... });
 ```
 
 ### `CreateClient` and `ConfigureSecretsManagerConfig` hooks removed
 
-The `SecretsManagerConfigurationProviderOptions.CreateClient` factory and `ConfigureSecretsManagerConfig` callback were the 1.x escape hatches for advanced client configuration (custom service URL, timeouts, LocalStack, etc.). Both have been removed in 2.0.
-
-Use the `IAmazonSecretsManager` overload instead to pass a fully-configured client:
+The `CreateClient` factory and `ConfigureSecretsManagerConfig` callback have been removed. Use the `IAmazonSecretsManager` overload to pass a fully-configured client:
 
 ```csharp
-// Before — configuring a low-level client property
+// Before
 builder.AddSecretsManager(options =>
 {
     options.ConfigureSecretsManagerConfig = config =>
     {
-        config.ServiceURL = "http://localhost:4566"; // LocalStack
+        config.ServiceURL = "http://localhost:4566";
         config.Timeout = TimeSpan.FromSeconds(5);
     };
 });
 
-// After — inject a pre-built client
+// After
 var config = new AmazonSecretsManagerConfig
 {
     ServiceURL = "http://localhost:4566",
     Timeout = TimeSpan.FromSeconds(5)
 };
 var client = new AmazonSecretsManagerClient(credentials, config);
-builder.AddSecretsManager(client, options => { ... });
-```
-
-```csharp
-// Before — providing a custom client factory
-builder.AddSecretsManager(options =>
-{
-    options.CreateClient = () => new MyCustomSecretsManagerClient();
-});
-
-// After — pass the client directly
-builder.AddSecretsManager(new MyCustomSecretsManagerClient(), options => { ... });
-```
-
-Region and credential customization via `AWSOptions` also covers the most common production scenarios:
-
-```csharp
-// appsettings.json: { "AWS": { "Region": "eu-west-1", "Profile": "my-profile" } }
-var awsOptions = builder.Configuration.GetAWSOptions();
-builder.AddSecretsManager(awsOptions, options => { ... });
+builder.AddSecretsManagerDiscovery(client, options => { ... });
 ```
 
 ### Public namespace for exception and context types
 
-`MissingSecretValueException` and `SecretValueContext` have been moved from the `Kralizek.Extensions.Configuration.Internal` namespace to `Kralizek.Extensions.Configuration`.
+`MissingSecretValueException` and `SecretValueContext` have been moved from `Kralizek.Extensions.Configuration.Internal` to `Kralizek.Extensions.Configuration`.
 
 ```csharp
 // Before
@@ -230,9 +180,7 @@ The package no longer depends on Newtonsoft.Json. JSON parsing is now done with 
 
 ### `DuplicateKeyHandling` enum added (behavior change)
 
-`DuplicateKeyHandling` is new in 2.0. It controls what happens when two secrets produce the same configuration key.
-
-In 1.x there was no explicit policy: duplicate keys could cause unpredictable results or failures depending on load order. In 2.0 the default is `LastWins`, meaning the last secret loaded silently wins. This is an intentional behavior change; use `Throw` if you want to surface conflicts explicitly.
+`DuplicateKeyHandling` controls what happens when two secrets produce the same configuration key. The default is `LastWins`.
 
 ```csharp
 options.DuplicateKeyHandling = DuplicateKeyHandling.LastWins;  // default
@@ -246,13 +194,12 @@ A structured logging pipeline has been added:
 
 - `SecretsManagerLogEvent` — represents a single log entry
 - `SecretsManagerLogEvents` — well-known `EventId` constants
-- `SecretsManagerLogging.ToLogEventSink(ILogger)` — converts to a standard `ILogger` sink
 - `options.UseLogging(ILogger)` — convenience extension
 - `options.UseBootstrapLogging(ILoggerFactory)` — bootstrap logging before DI is ready
 
 ### `ListSecretsFilters` is a `List<Filter>`
 
-`ListSecretsFilters` is now a read-only `List<Filter>` property. Use `.Add()` rather than assigning a new list.
+`ListSecretsFilters` (on `SecretsManagerDiscoveryOptions`) is a `List<Filter>`. Use `.Add()` rather than assigning a new list.
 
 ```csharp
 // Before
@@ -261,3 +208,4 @@ options.ListSecretsFilters = new List<Filter> { ... };
 // After
 options.ListSecretsFilters.Add(new Filter { ... });
 ```
+

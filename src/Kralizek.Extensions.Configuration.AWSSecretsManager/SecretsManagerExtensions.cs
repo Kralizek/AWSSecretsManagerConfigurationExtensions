@@ -23,6 +23,11 @@ namespace Microsoft.Extensions.Configuration
         /// using <c>BatchGetSecretValue</c> by default, or <c>GetSecretValue</c> when
         /// <see cref="SecretsManagerDiscoveryOptions.UseBatchFetch"/> is disabled.
         /// </para>
+        /// <para>
+        /// <b>Required IAM permissions:</b>
+        /// <c>secretsmanager:ListSecrets</c> and <c>secretsmanager:BatchGetSecretValue</c>
+        /// (or <c>secretsmanager:GetSecretValue</c> when <see cref="SecretsManagerDiscoveryOptions.UseBatchFetch"/> is <see langword="false"/>).
+        /// </para>
         /// </summary>
         public static IConfigurationBuilder AddSecretsManagerDiscovery(
             this IConfigurationBuilder builder,
@@ -37,6 +42,11 @@ namespace Microsoft.Extensions.Configuration
 
         /// <summary>
         /// Adds a discovery-based AWS Secrets Manager configuration provider using the supplied <see cref="AWSOptions"/>.
+        /// <para>
+        /// <b>Required IAM permissions:</b>
+        /// <c>secretsmanager:ListSecrets</c> and <c>secretsmanager:BatchGetSecretValue</c>
+        /// (or <c>secretsmanager:GetSecretValue</c> when <see cref="SecretsManagerDiscoveryOptions.UseBatchFetch"/> is <see langword="false"/>).
+        /// </para>
         /// </summary>
         public static IConfigurationBuilder AddSecretsManagerDiscovery(
             this IConfigurationBuilder builder,
@@ -53,6 +63,11 @@ namespace Microsoft.Extensions.Configuration
 
         /// <summary>
         /// Adds a discovery-based AWS Secrets Manager configuration provider using the supplied client.
+        /// <para>
+        /// <b>Required IAM permissions:</b>
+        /// <c>secretsmanager:ListSecrets</c> and <c>secretsmanager:BatchGetSecretValue</c>
+        /// (or <c>secretsmanager:GetSecretValue</c> when <see cref="SecretsManagerDiscoveryOptions.UseBatchFetch"/> is <see langword="false"/>).
+        /// </para>
         /// </summary>
         public static IConfigurationBuilder AddSecretsManagerDiscovery(
             this IConfigurationBuilder builder,
@@ -77,6 +92,9 @@ namespace Microsoft.Extensions.Configuration
         /// This provider fetches exactly one configured secret id/name/ARN using <c>GetSecretValue</c>.
         /// It never calls <c>ListSecrets</c> or <c>BatchGetSecretValue</c>.
         /// </para>
+        /// <para>
+        /// <b>Required IAM permissions:</b> <c>secretsmanager:GetSecretValue</c>.
+        /// </para>
         /// </summary>
         public static IConfigurationBuilder AddSecretsManagerKnownSecret(
             this IConfigurationBuilder builder,
@@ -93,6 +111,9 @@ namespace Microsoft.Extensions.Configuration
 
         /// <summary>
         /// Adds a known-single-secret AWS Secrets Manager configuration provider using the supplied <see cref="AWSOptions"/>.
+        /// <para>
+        /// <b>Required IAM permissions:</b> <c>secretsmanager:GetSecretValue</c>.
+        /// </para>
         /// </summary>
         public static IConfigurationBuilder AddSecretsManagerKnownSecret(
             this IConfigurationBuilder builder,
@@ -111,6 +132,9 @@ namespace Microsoft.Extensions.Configuration
 
         /// <summary>
         /// Adds a known-single-secret AWS Secrets Manager configuration provider using the supplied client.
+        /// <para>
+        /// <b>Required IAM permissions:</b> <c>secretsmanager:GetSecretValue</c>.
+        /// </para>
         /// </summary>
         public static IConfigurationBuilder AddSecretsManagerKnownSecret(
             this IConfigurationBuilder builder,
@@ -137,6 +161,10 @@ namespace Microsoft.Extensions.Configuration
         /// This provider fetches the configured known secret ids/names/ARNs. It never calls <c>ListSecrets</c>.
         /// It uses <c>BatchGetSecretValue</c> by default.
         /// </para>
+        /// <para>
+        /// <b>Required IAM permissions:</b> <c>secretsmanager:BatchGetSecretValue</c>
+        /// (or <c>secretsmanager:GetSecretValue</c> when <see cref="SecretsManagerKnownSecretsOptions.UseBatchFetch"/> is <see langword="false"/>).
+        /// </para>
         /// </summary>
         public static IConfigurationBuilder AddSecretsManagerKnownSecrets(
             this IConfigurationBuilder builder,
@@ -153,6 +181,10 @@ namespace Microsoft.Extensions.Configuration
 
         /// <summary>
         /// Adds a known-multiple-secrets AWS Secrets Manager configuration provider using the supplied <see cref="AWSOptions"/>.
+        /// <para>
+        /// <b>Required IAM permissions:</b> <c>secretsmanager:BatchGetSecretValue</c>
+        /// (or <c>secretsmanager:GetSecretValue</c> when <see cref="SecretsManagerKnownSecretsOptions.UseBatchFetch"/> is <see langword="false"/>).
+        /// </para>
         /// </summary>
         public static IConfigurationBuilder AddSecretsManagerKnownSecrets(
             this IConfigurationBuilder builder,
@@ -171,6 +203,10 @@ namespace Microsoft.Extensions.Configuration
 
         /// <summary>
         /// Adds a known-multiple-secrets AWS Secrets Manager configuration provider using the supplied client.
+        /// <para>
+        /// <b>Required IAM permissions:</b> <c>secretsmanager:BatchGetSecretValue</c>
+        /// (or <c>secretsmanager:GetSecretValue</c> when <see cref="SecretsManagerKnownSecretsOptions.UseBatchFetch"/> is <see langword="false"/>).
+        /// </para>
         /// </summary>
         public static IConfigurationBuilder AddSecretsManagerKnownSecrets(
             this IConfigurationBuilder builder,
