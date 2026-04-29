@@ -1,6 +1,8 @@
 using System;
+
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.SecretsManager;
+
 using Microsoft.Extensions.Configuration;
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -15,21 +17,21 @@ namespace Kralizek.Extensions.Configuration.Internal
         public SecretsManagerKnownSecretConfigurationSource(string secretId, SecretsManagerKnownSecretOptions options)
         {
             _secretId = secretId ?? throw new ArgumentNullException(nameof(secretId));
-            _options  = options  ?? throw new ArgumentNullException(nameof(options));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         public SecretsManagerKnownSecretConfigurationSource(AWSOptions awsOptions, string secretId, SecretsManagerKnownSecretOptions options)
         {
             _awsOptions = awsOptions ?? throw new ArgumentNullException(nameof(awsOptions));
-            _secretId   = secretId   ?? throw new ArgumentNullException(nameof(secretId));
-            _options    = options    ?? throw new ArgumentNullException(nameof(options));
+            _secretId = secretId ?? throw new ArgumentNullException(nameof(secretId));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         public SecretsManagerKnownSecretConfigurationSource(IAmazonSecretsManager client, string secretId, SecretsManagerKnownSecretOptions options)
         {
-            _client   = client   ?? throw new ArgumentNullException(nameof(client));
+            _client = client ?? throw new ArgumentNullException(nameof(client));
             _secretId = secretId ?? throw new ArgumentNullException(nameof(secretId));
-            _options  = options  ?? throw new ArgumentNullException(nameof(options));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         internal SecretsManagerKnownSecretOptions Options => _options;

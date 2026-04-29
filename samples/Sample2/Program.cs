@@ -1,4 +1,5 @@
 using Amazon.Extensions.NETCore.Setup;
+
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();

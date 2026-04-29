@@ -278,7 +278,7 @@ namespace Tests.Internal
         {
             // Caller supplies a partial ARN; the batch response returns a full ARN that starts with it
             const string partialArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret";
-            const string fullArn    = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string fullArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
 
             var batchResponse = fixture.Build<BatchGetSecretValueResponse>()
                 .With(p => p.SecretValues, new List<SecretValueEntry>

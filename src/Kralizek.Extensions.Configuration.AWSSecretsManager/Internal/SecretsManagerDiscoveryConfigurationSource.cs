@@ -1,6 +1,8 @@
 using System;
+
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.SecretsManager;
+
 using Microsoft.Extensions.Configuration;
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -19,12 +21,12 @@ namespace Kralizek.Extensions.Configuration.Internal
         public SecretsManagerDiscoveryConfigurationSource(AWSOptions awsOptions, SecretsManagerDiscoveryOptions options)
         {
             _awsOptions = awsOptions ?? throw new ArgumentNullException(nameof(awsOptions));
-            _options    = options    ?? throw new ArgumentNullException(nameof(options));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         public SecretsManagerDiscoveryConfigurationSource(IAmazonSecretsManager client, SecretsManagerDiscoveryOptions options)
         {
-            _client  = client  ?? throw new ArgumentNullException(nameof(client));
+            _client = client ?? throw new ArgumentNullException(nameof(client));
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 

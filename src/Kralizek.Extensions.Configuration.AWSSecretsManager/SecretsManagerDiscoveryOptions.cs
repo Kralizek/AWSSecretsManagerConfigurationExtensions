@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+
 using Amazon.SecretsManager.Model;
 
 namespace Kralizek.Extensions.Configuration

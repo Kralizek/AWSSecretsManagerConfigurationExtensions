@@ -34,15 +34,15 @@ namespace Kralizek.Extensions.Configuration.Internal
             switch (element.ValueKind)
             {
                 case JsonValueKind.Array:
-                {
-                    var i = 0;
-                    foreach (var el in element.EnumerateArray())
                     {
-                        var k = $"{prefix}{ConfigurationPath.KeyDelimiter}{i++}";
-                        foreach (var pair in ExtractValues(el, k)) yield return pair;
+                        var i = 0;
+                        foreach (var el in element.EnumerateArray())
+                        {
+                            var k = $"{prefix}{ConfigurationPath.KeyDelimiter}{i++}";
+                            foreach (var pair in ExtractValues(el, k)) yield return pair;
+                        }
+                        break;
                     }
-                    break;
-                }
                 case JsonValueKind.Number:
                     yield return (prefix, element.GetRawText());
                     break;

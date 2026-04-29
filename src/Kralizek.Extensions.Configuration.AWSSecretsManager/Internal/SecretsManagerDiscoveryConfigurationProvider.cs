@@ -22,7 +22,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// <inheritdoc cref="SecretsManagerDiscoveryConfigurationProvider"/>
         public SecretsManagerDiscoveryConfigurationProvider(IAmazonSecretsManager client, SecretsManagerDiscoveryOptions options)
         {
-            _client  = client  ?? throw new ArgumentNullException(nameof(client));
+            _client = client ?? throw new ArgumentNullException(nameof(client));
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
@@ -166,7 +166,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 catch (ResourceNotFoundException e)
                 {
                     var names = string.Join(",", secretSet.Select(a => a.Name));
-                    var arns  = string.Join(",", secretSet.Select(a => a.ARN));
+                    var arns = string.Join(",", secretSet.Select(a => a.ARN));
                     throw new MissingSecretValueException(
                         $"Error retrieving secret value (Secrets: {names} Arns: {arns})", names, arns, e);
                 }

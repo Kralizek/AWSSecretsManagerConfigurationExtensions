@@ -1,4 +1,5 @@
 using System;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kralizek.Extensions.Configuration
@@ -108,4 +109,3 @@ namespace Kralizek.Extensions.Configuration
         }
     }
 }
-

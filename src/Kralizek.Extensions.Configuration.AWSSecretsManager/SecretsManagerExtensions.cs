@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.SecretsManager;
+
 using Kralizek.Extensions.Configuration;
 using Kralizek.Extensions.Configuration.Internal;
 

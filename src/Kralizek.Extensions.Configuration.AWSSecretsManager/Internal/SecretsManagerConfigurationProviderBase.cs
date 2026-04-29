@@ -138,7 +138,8 @@ namespace Kralizek.Extensions.Configuration.Internal
             _cancellationTokenSource = null;
             _pollingTask = null;
             cancellationTokenSource?.Cancel();
-            try { pollingTask?.GetAwaiter().GetResult(); } catch (OperationCanceledException) { }
+            try { pollingTask?.GetAwaiter().GetResult(); }
+            catch (OperationCanceledException) { }
             finally { cancellationTokenSource?.Dispose(); }
         }
     }

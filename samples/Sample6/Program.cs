@@ -1,4 +1,5 @@
 using Kralizek.Extensions.Configuration;
+
 using Microsoft.Extensions.Configuration;
 
 var builder = new ConfigurationBuilder();

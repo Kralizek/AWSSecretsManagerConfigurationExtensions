@@ -23,9 +23,9 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// <inheritdoc cref="SecretsManagerKnownSecretConfigurationProvider"/>
         public SecretsManagerKnownSecretConfigurationProvider(IAmazonSecretsManager client, string secretId, SecretsManagerKnownSecretOptions options)
         {
-            _client   = client   ?? throw new ArgumentNullException(nameof(client));
+            _client = client ?? throw new ArgumentNullException(nameof(client));
             _secretId = !string.IsNullOrWhiteSpace(secretId) ? secretId : throw new ArgumentException("Secret id must not be null or whitespace.", nameof(secretId));
-            _options  = options  ?? throw new ArgumentNullException(nameof(options));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         /// <inheritdoc/>

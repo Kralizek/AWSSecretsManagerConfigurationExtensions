@@ -25,6 +25,9 @@ jobs:
       - name: Restore
         run: dotnet restore
 
+      - name: Format Check
+        run: dotnet format --verify-no-changes
+
       - name: Build
         run: dotnet build --no-restore -c Release -warnaserror
 
