@@ -196,6 +196,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// <inheritdoc/>
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
             var cancellationTokenSource = _cancellationTokenSource;
             var pollingTask = _pollingTask;
             _cancellationTokenSource = null;
@@ -204,7 +205,6 @@ namespace Kralizek.Extensions.Configuration.Internal
             try { pollingTask?.GetAwaiter().GetResult(); }
             catch (OperationCanceledException) { }
             finally { cancellationTokenSource?.Dispose(); }
-            GC.SuppressFinalize(this);
         }
     }
 }
