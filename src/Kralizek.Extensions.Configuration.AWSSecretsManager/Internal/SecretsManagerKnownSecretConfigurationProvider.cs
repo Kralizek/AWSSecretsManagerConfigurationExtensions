@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,6 +39,9 @@ namespace Kralizek.Extensions.Configuration.Internal
         protected override DuplicateKeyHandling DuplicateKeyHandling => _options.DuplicateKeyHandling;
 
         /// <inheritdoc/>
+        protected override string ProviderType => "KnownSecret";
+
+        /// <inheritdoc/>
         protected override Task<Dictionary<string, string?>> FetchConfigurationCoreAsync(CancellationToken cancellationToken)
             => FetchConfigurationAsync(cancellationToken);
 
@@ -50,12 +54,16 @@ namespace Kralizek.Extensions.Configuration.Internal
             _options.ConfigureSecretValueRequest?.Invoke(request, new SecretValueContext(syntheticEntry));
 
             GetSecretValueResponse secretValue;
+            using var activity = SecretsManagerInstrumentation.ActivitySource.StartActivity("secretsmanager GetSecretValue");
+            activity?.SetTag("aws.secretsmanager.secret.name", _secretId);
+            activity?.SetTag("aws.secretsmanager.secret.arn", _secretId);
             try
             {
                 secretValue = await _client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
             }
             catch (ResourceNotFoundException e)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, e.Message);
                 throw new MissingSecretValueException(
                     $"Error retrieving secret value (SecretId: {_secretId})",
                     _secretId, _secretId, e);
