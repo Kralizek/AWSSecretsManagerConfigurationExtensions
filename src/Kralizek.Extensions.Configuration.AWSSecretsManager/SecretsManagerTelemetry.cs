@@ -27,49 +27,4 @@ namespace Kralizek.Extensions.Configuration
         /// </summary>
         public const string MeterName = "Kralizek.Extensions.Configuration.AWSSecretsManager";
     }
-
-    /// <summary>
-    /// OpenTelemetry extension methods for <see cref="SecretsManagerDiscoveryOptions"/>.
-    /// </summary>
-    public static class SecretsManagerDiscoveryOptionsTelemetryExtensions
-    {
-        /// <summary>
-        /// Opts this provider into OpenTelemetry instrumentation.
-        /// No additional configuration is required beyond registering
-        /// <see cref="SecretsManagerTelemetry.ActivitySourceName"/> and
-        /// <see cref="SecretsManagerTelemetry.MeterName"/> with the OpenTelemetry SDK.
-        /// </summary>
-        public static SecretsManagerDiscoveryOptions UseOpenTelemetry(this SecretsManagerDiscoveryOptions options)
-            => options;
-    }
-
-    /// <summary>
-    /// OpenTelemetry extension methods for <see cref="SecretsManagerKnownSecretOptions"/>.
-    /// </summary>
-    public static class SecretsManagerKnownSecretOptionsTelemetryExtensions
-    {
-        /// <summary>
-        /// Opts this provider into OpenTelemetry instrumentation.
-        /// No additional configuration is required beyond registering
-        /// <see cref="SecretsManagerTelemetry.ActivitySourceName"/> and
-        /// <see cref="SecretsManagerTelemetry.MeterName"/> with the OpenTelemetry SDK.
-        /// </summary>
-        public static SecretsManagerKnownSecretOptions UseOpenTelemetry(this SecretsManagerKnownSecretOptions options)
-            => options;
-    }
-
-    /// <summary>
-    /// OpenTelemetry extension methods for <see cref="SecretsManagerKnownSecretsOptions"/>.
-    /// </summary>
-    public static class SecretsManagerKnownSecretsOptionsTelemetryExtensions
-    {
-        /// <summary>
-        /// Opts this provider into OpenTelemetry instrumentation.
-        /// No additional configuration is required beyond registering
-        /// <see cref="SecretsManagerTelemetry.ActivitySourceName"/> and
-        /// <see cref="SecretsManagerTelemetry.MeterName"/> with the OpenTelemetry SDK.
-        /// </summary>
-        public static SecretsManagerKnownSecretsOptions UseOpenTelemetry(this SecretsManagerKnownSecretsOptions options)
-            => options;
-    }
 }

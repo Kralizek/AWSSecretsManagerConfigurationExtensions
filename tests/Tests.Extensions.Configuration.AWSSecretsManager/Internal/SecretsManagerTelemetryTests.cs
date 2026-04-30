@@ -360,29 +360,5 @@ namespace Tests.Internal
             Assert.That(SecretsManagerTelemetry.MeterName,
                 Is.EqualTo("Kralizek.Extensions.Configuration.AWSSecretsManager"));
         }
-
-        [Test]
-        public void UseOpenTelemetry_returns_same_discovery_options_instance()
-        {
-            var options = new SecretsManagerDiscoveryOptions();
-            var result = options.UseOpenTelemetry();
-            Assert.That(result, Is.SameAs(options));
-        }
-
-        [Test]
-        public void UseOpenTelemetry_returns_same_knownSecret_options_instance()
-        {
-            var options = new SecretsManagerKnownSecretOptions();
-            var result = options.UseOpenTelemetry();
-            Assert.That(result, Is.SameAs(options));
-        }
-
-        [Test]
-        public void UseOpenTelemetry_returns_same_knownSecrets_options_instance()
-        {
-            var options = new SecretsManagerKnownSecretsOptions();
-            var result = options.UseOpenTelemetry();
-            Assert.That(result, Is.SameAs(options));
-        }
     }
 }

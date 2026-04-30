@@ -204,6 +204,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             try { pollingTask?.GetAwaiter().GetResult(); }
             catch (OperationCanceledException) { }
             finally { cancellationTokenSource?.Dispose(); }
+            GC.SuppressFinalize(this);
         }
     }
 }
