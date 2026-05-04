@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,6 +28,13 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         /// <summary>Gets the duplicate key handling policy for this provider.</summary>
         protected abstract DuplicateKeyHandling DuplicateKeyHandling { get; }
+
+        /// <summary>
+        /// Gets a short string that identifies the provider type used as the <c>provider.type</c>
+        /// tag on OpenTelemetry spans and metrics (e.g. <c>"Discovery"</c>, <c>"KnownSecret"</c>,
+        /// <c>"KnownSecrets"</c>).
+        /// </summary>
+        protected abstract string ProviderType { get; }
 
         /// <summary>
         /// Fetches the complete configuration dictionary from AWS.
@@ -80,8 +88,32 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             Log(LogLevel.Debug, SecretsManagerLogEvents.LoadStarted, "Secrets Manager configuration load started.");
 
-            _loadedValues = await FetchConfigurationCoreAsync(default).ConfigureAwait(false);
-            SetData(_loadedValues, triggerReload: false);
+            using var activity = SecretsManagerInstrumentation.ActivitySource.StartActivity("secretsmanager load");
+            activity?.SetTag("provider.type", ProviderType);
+
+            var startTimestamp = Stopwatch.GetTimestamp();
+            try
+            {
+                _loadedValues = await FetchConfigurationCoreAsync(default).ConfigureAwait(false);
+                SetData(_loadedValues, triggerReload: false);
+            }
+            catch (Exception ex)
+            {
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                throw;
+            }
+            finally
+            {
+                var elapsedMs = GetElapsedMilliseconds(startTimestamp);
+                SecretsManagerInstrumentation.LoadDuration.Record(
+                    elapsedMs,
+                    new KeyValuePair<string, object?>("provider.type", ProviderType));
+            }
+
+            activity?.SetTag("secret.count", _loadedValues.Count);
+            SecretsManagerInstrumentation.SecretsLoaded.Record(
+                _loadedValues.Count,
+                new KeyValuePair<string, object?>("provider.type", ProviderType));
 
             Log(LogLevel.Debug, SecretsManagerLogEvents.LoadCompleted,
                 "Secrets Manager configuration load completed. {SecretCount} secrets loaded.",
@@ -113,16 +145,52 @@ namespace Kralizek.Extensions.Configuration.Internal
         private async Task ReloadAsync(CancellationToken cancellationToken)
         {
             Log(LogLevel.Debug, SecretsManagerLogEvents.ReloadStarted, "Secrets Manager configuration reload started.");
-            var oldValues = _loadedValues;
-            var newValues = await FetchConfigurationCoreAsync(cancellationToken).ConfigureAwait(false);
 
-            if (!SecretsManagerHelpers.DictionaryEquals(oldValues, newValues))
+            using var activity = SecretsManagerInstrumentation.ActivitySource.StartActivity("secretsmanager reload");
+            activity?.SetTag("provider.type", ProviderType);
+
+            var startTimestamp = Stopwatch.GetTimestamp();
+            bool changed = false;
+            int secretCount = 0;
+            try
             {
-                _loadedValues = newValues;
-                SetData(_loadedValues, triggerReload: true);
+                var oldValues = _loadedValues;
+                var newValues = await FetchConfigurationCoreAsync(cancellationToken).ConfigureAwait(false);
+                secretCount = newValues.Count;
+
+                changed = !SecretsManagerHelpers.DictionaryEquals(oldValues, newValues);
+                if (changed)
+                {
+                    _loadedValues = newValues;
+                    SetData(_loadedValues, triggerReload: true);
+                }
             }
+            catch (Exception ex)
+            {
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                SecretsManagerInstrumentation.ReloadErrors.Add(
+                    1,
+                    new KeyValuePair<string, object?>("provider.type", ProviderType));
+                throw;
+            }
+            finally
+            {
+                var elapsedMs = GetElapsedMilliseconds(startTimestamp);
+                SecretsManagerInstrumentation.ReloadDuration.Record(
+                    elapsedMs,
+                    new KeyValuePair<string, object?>("provider.type", ProviderType),
+                    new KeyValuePair<string, object?>("changed", changed));
+            }
+
+            activity?.SetTag("changed", changed);
+            SecretsManagerInstrumentation.SecretsLoaded.Record(
+                secretCount,
+                new KeyValuePair<string, object?>("provider.type", ProviderType));
             Log(LogLevel.Debug, SecretsManagerLogEvents.ReloadCompleted, "Secrets Manager configuration reload completed.");
         }
+
+        private static double GetElapsedMilliseconds(long startTimestamp)
+            => (Stopwatch.GetTimestamp() - startTimestamp) * 1000.0 / Stopwatch.Frequency;
 
         private void SetData(Dictionary<string, string?> values, bool triggerReload)
         {
@@ -133,6 +201,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         /// <inheritdoc/>
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
             var cancellationTokenSource = _cancellationTokenSource;
             var pollingTask = _pollingTask;
             _cancellationTokenSource = null;

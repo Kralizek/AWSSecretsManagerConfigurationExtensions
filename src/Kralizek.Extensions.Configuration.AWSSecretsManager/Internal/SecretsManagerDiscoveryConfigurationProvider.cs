@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,6 +37,9 @@ namespace Kralizek.Extensions.Configuration.Internal
         protected override DuplicateKeyHandling DuplicateKeyHandling => _options.DuplicateKeyHandling;
 
         /// <inheritdoc/>
+        protected override string ProviderType => "Discovery";
+
+        /// <inheritdoc/>
         protected override Task<Dictionary<string, string?>> FetchConfigurationCoreAsync(CancellationToken cancellationToken)
             => _options.UseBatchFetch
                 ? FetchConfigurationBatchAsync(cancellationToken)
@@ -45,16 +49,28 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             var result = new List<SecretListEntry>();
             ListSecretsResponse? response = null;
-            do
+            int pageCount = 0;
+            using var activity = SecretsManagerInstrumentation.ActivitySource.StartActivity("secretsmanager ListSecrets");
+            try
             {
-                var request = new ListSecretsRequest
+                do
                 {
-                    NextToken = response?.NextToken,
-                    Filters = _options.ListSecretsFilters
-                };
-                response = await _client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
-                result.AddRange(response.SecretList);
-            } while (response.NextToken != null);
+                    var request = new ListSecretsRequest
+                    {
+                        NextToken = response?.NextToken,
+                        Filters = _options.ListSecretsFilters
+                    };
+                    response = await _client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
+                    result.AddRange(response.SecretList);
+                    pageCount++;
+                } while (response.NextToken != null);
+            }
+            catch (Exception ex)
+            {
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                throw;
+            }
+            activity?.SetTag("page.count", pageCount);
             return result;
         }
 
@@ -78,15 +94,24 @@ namespace Kralizek.Extensions.Configuration.Internal
                     _options.ConfigureSecretValueRequest?.Invoke(request, new SecretValueContext(secret));
 
                     GetSecretValueResponse secretValue;
+                    using var getActivity = SecretsManagerInstrumentation.ActivitySource.StartActivity("secretsmanager GetSecretValue");
+                    getActivity?.SetTag("aws.secretsmanager.secret.name", secret.Name);
+                    getActivity?.SetTag("aws.secretsmanager.secret.arn", secret.ARN);
                     try
                     {
                         secretValue = await _client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
                     }
                     catch (ResourceNotFoundException e)
                     {
+                        getActivity?.SetStatus(ActivityStatusCode.Error, e.Message);
                         throw new MissingSecretValueException(
                             $"Error retrieving secret value (Secret: {secret.Name} Arn: {secret.ARN})",
                             secret.Name, secret.ARN, e);
+                    }
+                    catch (Exception ex)
+                    {
+                        getActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                        throw;
                     }
 
                     var secretString = secretValue.SecretString;
@@ -138,6 +163,9 @@ namespace Kralizek.Extensions.Configuration.Internal
                 var contextList = secretSet.Select(a => new SecretValueContext(a)).ToList();
                 _options.ConfigureBatchSecretValueRequest?.Invoke(request, (IReadOnlyList<SecretValueContext>)contextList);
 
+                using var batchActivity = SecretsManagerInstrumentation.ActivitySource.StartActivity("secretsmanager BatchGetSecretValue");
+                batchActivity?.SetTag("batch.size", secretSet.Count);
+                int pageCount = 0;
                 try
                 {
                     BatchGetSecretValueResponse? secretValueSet = null;
@@ -145,6 +173,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                     {
                         request.NextToken = secretValueSet?.NextToken;
                         secretValueSet = await _client.BatchGetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
+                        pageCount++;
 
                         if (secretValueSet.Errors?.Any() == true)
                         {
@@ -165,11 +194,23 @@ namespace Kralizek.Extensions.Configuration.Internal
                 }
                 catch (ResourceNotFoundException e)
                 {
+                    batchActivity?.SetStatus(ActivityStatusCode.Error, e.Message);
                     var names = string.Join(",", secretSet.Select(a => a.Name));
                     var arns = string.Join(",", secretSet.Select(a => a.ARN));
                     throw new MissingSecretValueException(
                         $"Error retrieving secret value (Secrets: {names} Arns: {arns})", names, arns, e);
                 }
+                catch (AggregateException ex)
+                {
+                    batchActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    batchActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    throw;
+                }
+                batchActivity?.SetTag("page.count", pageCount);
             }
 
             return dict;
