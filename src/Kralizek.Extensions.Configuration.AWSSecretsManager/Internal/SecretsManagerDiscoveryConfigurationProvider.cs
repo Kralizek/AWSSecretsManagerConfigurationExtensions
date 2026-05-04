@@ -108,6 +108,11 @@ namespace Kralizek.Extensions.Configuration.Internal
                             $"Error retrieving secret value (Secret: {secret.Name} Arn: {secret.ARN})",
                             secret.Name, secret.ARN, e);
                     }
+                    catch (Exception ex)
+                    {
+                        getActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                        throw;
+                    }
 
                     var secretString = secretValue.SecretString;
                     if (secretString is null) continue;
@@ -196,6 +201,11 @@ namespace Kralizek.Extensions.Configuration.Internal
                         $"Error retrieving secret value (Secrets: {names} Arns: {arns})", names, arns, e);
                 }
                 catch (AggregateException ex)
+                {
+                    batchActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    throw;
+                }
+                catch (Exception ex)
                 {
                     batchActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                     throw;

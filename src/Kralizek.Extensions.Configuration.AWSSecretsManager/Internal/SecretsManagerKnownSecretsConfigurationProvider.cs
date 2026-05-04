@@ -61,10 +61,11 @@ namespace Kralizek.Extensions.Configuration.Internal
                 GetSecretValueResponse secretValue;
                 using var activity = SecretsManagerInstrumentation.ActivitySource.StartActivity("secretsmanager GetSecretValue");
                 activity?.SetTag("aws.secretsmanager.secret.name", secretId);
-                activity?.SetTag("aws.secretsmanager.secret.arn", secretId);
                 try
                 {
                     secretValue = await _client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(secretValue.ARN))
+                        activity?.SetTag("aws.secretsmanager.secret.arn", secretValue.ARN);
                 }
                 catch (ResourceNotFoundException e)
                 {
@@ -72,6 +73,11 @@ namespace Kralizek.Extensions.Configuration.Internal
                     throw new MissingSecretValueException(
                         $"Error retrieving secret value (SecretId: {secretId})",
                         secretId, secretId, e);
+                }
+                catch (Exception ex)
+                {
+                    activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    throw;
                 }
 
                 var rootKey = !string.IsNullOrEmpty(secretValue.Name) ? secretValue.Name : secretId;
@@ -181,13 +187,22 @@ namespace Kralizek.Extensions.Configuration.Internal
                     batchActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                     throw;
                 }
-                catch (MissingSecretValueException) { throw; }
+                catch (MissingSecretValueException ex)
+                {
+                    batchActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    throw;
+                }
                 catch (ResourceNotFoundException e)
                 {
                     batchActivity?.SetStatus(ActivityStatusCode.Error, e.Message);
                     var configuredIds = string.Join(",", secretIdSet);
                     throw new MissingSecretValueException(
                         $"Error retrieving secret value (Configured secret ids: {configuredIds})", configuredIds, configuredIds, e);
+                }
+                catch (Exception ex)
+                {
+                    batchActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    throw;
                 }
                 batchActivity?.SetTag("page.count", pageCount);
             }

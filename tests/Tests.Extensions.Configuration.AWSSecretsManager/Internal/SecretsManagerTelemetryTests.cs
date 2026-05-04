@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
@@ -343,6 +344,146 @@ namespace Tests.Internal
 
             Assert.That(recorded, Is.Not.Null, "Expected secretsmanager.reload.duration to be recorded.");
             Assert.That(recorded, Is.GreaterThanOrEqualTo(0));
+        }
+
+        [Test, CustomAutoData]
+        public void Load_sets_GetSecretValue_span_status_to_error_when_aws_call_throws(
+            ListSecretsResponse listSecretsResponse,
+            [Frozen] IAmazonSecretsManager secretsManager,
+            [Frozen] SecretsManagerDiscoveryOptions options,
+            SecretsManagerDiscoveryConfigurationProvider sut)
+        {
+            options.UseBatchFetch = false;
+            Mock.Get(secretsManager)
+                .Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(listSecretsResponse);
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("boom"));
+
+            Activity? captured = null;
+            using var listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == SecretsManagerTelemetry.ActivitySourceName,
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                ActivityStopped = activity =>
+                {
+                    if (activity.OperationName == "secretsmanager GetSecretValue")
+                        captured = activity;
+                }
+            };
+            ActivitySource.AddActivityListener(listener);
+
+            Assert.Throws<InvalidOperationException>(() => sut.Load());
+
+            Assert.That(captured, Is.Not.Null, "Expected a 'secretsmanager GetSecretValue' span.");
+            Assert.That(captured!.Status, Is.EqualTo(ActivityStatusCode.Error));
+        }
+
+        [Test, CustomAutoData]
+        public void Batch_load_sets_BatchGetSecretValue_span_status_to_error_when_aws_call_throws(
+            [Frozen] SecretListEntry testEntry,
+            ListSecretsResponse listSecretsResponse,
+            [Frozen] IAmazonSecretsManager secretsManager,
+            [Frozen] SecretsManagerDiscoveryOptions options,
+            SecretsManagerDiscoveryConfigurationProvider sut)
+        {
+            options.UseBatchFetch = true;
+            Mock.Get(secretsManager)
+                .Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(listSecretsResponse);
+            Mock.Get(secretsManager)
+                .Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("boom"));
+
+            Activity? captured = null;
+            using var listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == SecretsManagerTelemetry.ActivitySourceName,
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                ActivityStopped = activity =>
+                {
+                    if (activity.OperationName == "secretsmanager BatchGetSecretValue")
+                        captured = activity;
+                }
+            };
+            ActivitySource.AddActivityListener(listener);
+
+            Assert.Throws<InvalidOperationException>(() => sut.Load());
+
+            Assert.That(captured, Is.Not.Null, "Expected a 'secretsmanager BatchGetSecretValue' span.");
+            Assert.That(captured!.Status, Is.EqualTo(ActivityStatusCode.Error));
+        }
+
+        [Test, CustomAutoData]
+        public async System.Threading.Tasks.Task ForceReload_records_reload_error_metric_when_reload_fails(
+            [Frozen] SecretListEntry testEntry,
+            ListSecretsResponse listSecretsResponse,
+            GetSecretValueResponse getSecretValueResponse,
+            [Frozen] IAmazonSecretsManager secretsManager,
+            [Frozen] SecretsManagerDiscoveryOptions options,
+            SecretsManagerDiscoveryConfigurationProvider sut)
+        {
+            options.UseBatchFetch = false;
+            Mock.Get(secretsManager)
+                .SetupSequence(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(listSecretsResponse)
+                .ThrowsAsync(new InvalidOperationException("reload failed"));
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(getSecretValueResponse);
+
+            sut.Load();
+
+            long recordedErrors = 0;
+            using var meterListener = new MeterListener();
+            meterListener.InstrumentPublished = (instrument, listener) =>
+            {
+                if (instrument.Meter.Name == SecretsManagerTelemetry.MeterName &&
+                    instrument.Name == "secretsmanager.reload.errors")
+                    listener.EnableMeasurementEvents(instrument);
+            };
+            meterListener.SetMeasurementEventCallback<long>((_, value, _, _) => recordedErrors += value);
+            meterListener.Start();
+
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await sut.ForceReloadAsync(CancellationToken.None));
+
+            Assert.That(recordedErrors, Is.GreaterThan(0), "Expected secretsmanager.reload.errors to be recorded.");
+        }
+
+        [Test, CustomAutoData]
+        public void KnownSecret_load_uses_response_arn_for_span_tag(
+            [Frozen] IAmazonSecretsManager secretsManager,
+            GetSecretValueResponse getSecretValueResponse)
+        {
+            const string secretId = "my-secret-name";
+            const string responseArn = "arn:aws:secretsmanager:eu-west-1:123456789012:secret:my-secret-name-AbCdEf";
+            getSecretValueResponse.ARN = responseArn;
+            getSecretValueResponse.Name = secretId;
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, secretId, new SecretsManagerKnownSecretOptions());
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(getSecretValueResponse);
+
+            Activity? captured = null;
+            using var listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == SecretsManagerTelemetry.ActivitySourceName,
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                ActivityStopped = activity =>
+                {
+                    if (activity.OperationName == "secretsmanager GetSecretValue")
+                        captured = activity;
+                }
+            };
+            ActivitySource.AddActivityListener(listener);
+
+            sut.Load();
+
+            Assert.That(captured, Is.Not.Null, "Expected a 'secretsmanager GetSecretValue' span.");
+            Assert.That(captured!.GetTagItem("aws.secretsmanager.secret.name"), Is.EqualTo(secretId));
+            Assert.That(captured.GetTagItem("aws.secretsmanager.secret.arn"), Is.EqualTo(responseArn));
         }
 
         // ── SecretsManagerTelemetry public API tests ─────────────────────────

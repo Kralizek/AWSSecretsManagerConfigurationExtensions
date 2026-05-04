@@ -136,9 +136,6 @@ namespace Kralizek.Extensions.Configuration.Internal
                 try { await ReloadAsync(cancellationToken).ConfigureAwait(false); }
                 catch (Exception ex) when (!(ex is OperationCanceledException))
                 {
-                    SecretsManagerInstrumentation.ReloadErrors.Add(
-                        1,
-                        new KeyValuePair<string, object?>("provider.type", ProviderType));
                     Log(LogLevel.Error, SecretsManagerLogEvents.ReloadFailed,
                         "Secrets Manager configuration reload failed.", ex);
                 }
@@ -154,10 +151,12 @@ namespace Kralizek.Extensions.Configuration.Internal
 
             var startTimestamp = Stopwatch.GetTimestamp();
             bool changed = false;
+            int secretCount = 0;
             try
             {
                 var oldValues = _loadedValues;
                 var newValues = await FetchConfigurationCoreAsync(cancellationToken).ConfigureAwait(false);
+                secretCount = newValues.Count;
 
                 changed = !SecretsManagerHelpers.DictionaryEquals(oldValues, newValues);
                 if (changed)
@@ -169,6 +168,9 @@ namespace Kralizek.Extensions.Configuration.Internal
             catch (Exception ex)
             {
                 activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                SecretsManagerInstrumentation.ReloadErrors.Add(
+                    1,
+                    new KeyValuePair<string, object?>("provider.type", ProviderType));
                 throw;
             }
             finally
@@ -181,6 +183,9 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
 
             activity?.SetTag("changed", changed);
+            SecretsManagerInstrumentation.SecretsLoaded.Record(
+                secretCount,
+                new KeyValuePair<string, object?>("provider.type", ProviderType));
             Log(LogLevel.Debug, SecretsManagerLogEvents.ReloadCompleted, "Secrets Manager configuration reload completed.");
         }
 

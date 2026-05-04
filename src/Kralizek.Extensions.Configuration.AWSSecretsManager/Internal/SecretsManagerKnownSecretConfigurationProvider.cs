@@ -56,10 +56,11 @@ namespace Kralizek.Extensions.Configuration.Internal
             GetSecretValueResponse secretValue;
             using var activity = SecretsManagerInstrumentation.ActivitySource.StartActivity("secretsmanager GetSecretValue");
             activity?.SetTag("aws.secretsmanager.secret.name", _secretId);
-            activity?.SetTag("aws.secretsmanager.secret.arn", _secretId);
             try
             {
                 secretValue = await _client.GetSecretValueAsync(request, cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(secretValue.ARN))
+                    activity?.SetTag("aws.secretsmanager.secret.arn", secretValue.ARN);
             }
             catch (ResourceNotFoundException e)
             {
@@ -67,6 +68,11 @@ namespace Kralizek.Extensions.Configuration.Internal
                 throw new MissingSecretValueException(
                     $"Error retrieving secret value (SecretId: {_secretId})",
                     _secretId, _secretId, e);
+            }
+            catch (Exception ex)
+            {
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                throw;
             }
 
             var rootKey = !string.IsNullOrEmpty(secretValue.Name) ? secretValue.Name : _secretId;
