@@ -1,0 +1,73 @@
+name: Security Report
+description: Report a potential security vulnerability.
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > ⚠️ **This issue will be visible to repository maintainers.**
+        >
+        > Please **do not** include live AWS credentials, secret values, access keys, or any sensitive
+        > material that is not strictly necessary to describe the vulnerability.
+        >
+        > See [SECURITY.md](../../blob/master/SECURITY.md) for the full policy.
+
+  - type: input
+    id: version
+    attributes:
+      label: Affected version(s)
+      placeholder: e.g. 4.2.0, 4.1.x, all versions
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this vulnerability?
+      options:
+        - Critical (arbitrary code execution, credential exposure)
+        - High (authentication bypass, data breach)
+        - Medium (denial of service, privilege escalation)
+        - Low (information disclosure, edge cases)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Vulnerability description
+      description: Describe the security issue without including sensitive material.
+      placeholder: |
+        Example: "The library does not validate AWS IAM policy restrictions, allowing access to secrets outside the intended scope..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: How can the vulnerability be triggered?
+      placeholder: |
+        1. Create an AWS secret with...
+        2. Configure credentials with...
+        3. Attempt to access...
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What is the potential impact if exploited?
+      placeholder: |
+        Example: "An attacker could read secrets from other applications, leading to credential exposure..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested mitigation (optional)
+      description: Any ideas on how the issue could be fixed or mitigated.
+      placeholder: "Example: Validate secret names against a whitelist before retrieving values..."

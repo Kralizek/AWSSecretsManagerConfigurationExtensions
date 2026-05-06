@@ -1,0 +1,80 @@
+name: Bug Report
+description: Something is not working as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as you can.
+
+  - type: input
+    id: package
+    attributes:
+      label: Package version
+      placeholder: e.g. 4.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: runtime
+    attributes:
+      label: .NET SDK / runtime version
+      placeholder: e.g. .NET 8.0.5
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Loading mode
+      description: Which loading mode are you using?
+      options:
+        - Discovery
+        - KnownSecrets
+        - KnownSecret
+    validations:
+      required: true
+
+  - type: input
+    id: aws_region
+    attributes:
+      label: AWS Region
+      placeholder: e.g. us-east-1, eu-west-1
+    validations:
+      required: false
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide a minimal reproduction — ideally a code snippet or a link to a repo.
+      placeholder: |
+        1. Set up secrets in AWS Secrets Manager with...
+        2. Configure the extension with...
+        3. Call...
+        4. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      placeholder: What should happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      placeholder: What actually happens? Include error messages, stack traces, or log output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Logs, screenshots, AWS IAM policy, related issues, etc.
+      placeholder: Paste relevant error messages or configurations (redact any sensitive data like secret names or credentials).
