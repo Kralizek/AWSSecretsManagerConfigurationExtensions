@@ -216,6 +216,7 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
+        [Description("#101: An unknown or unresolvable identifier causes MissingSecretValueException.")]
         public void Should_throw_on_missing_secret([Frozen] IAmazonSecretsManager secretsManager)
         {
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).Throws(new ResourceNotFoundException("Oops"));
@@ -273,6 +274,120 @@ namespace Tests.Internal
 
             Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
             Assert.That(sut.Get(secretName), Is.EqualTo("updated"));
+        }
+
+        // #103 – AWS SDK v4 compatibility: GetSecretValueResponse.CreatedDate is DateTime? in v4.
+        // The provider must not read CreatedDate; these tests prove that neither null nor a
+        // populated CreatedDate affects whether the secret value is loaded.
+
+        [Test, CustomAutoData]
+        [Description("#103: A v4-shaped GetSecretValueResponse with CreatedDate = null must not break loading.")]
+        public void Load_succeeds_with_v4_shaped_response_with_CreatedDate_null(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string secretId = "my-secret";
+            var response = new GetSecretValueResponse
+            {
+                ARN = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf",
+                Name = secretId,
+                SecretString = "the-value",
+                CreatedDate = null   // v4: nullable – may be absent from the API response
+            };
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, secretId, new SecretsManagerKnownSecretOptions());
+            sut.Load();
+
+            Assert.That(sut.Get(secretId), Is.EqualTo("the-value"));
+        }
+
+        [Test, CustomAutoData]
+        [Description("#103: A v4-shaped GetSecretValueResponse with CreatedDate = DateTime.UtcNow must not break loading.")]
+        public void Load_succeeds_with_v4_shaped_response_with_CreatedDate_set(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string secretId = "my-secret";
+            var response = new GetSecretValueResponse
+            {
+                ARN = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf",
+                Name = secretId,
+                SecretString = "the-value",
+                CreatedDate = DateTime.UtcNow   // v4: nullable with a value
+            };
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, secretId, new SecretsManagerKnownSecretOptions());
+            sut.Load();
+
+            Assert.That(sut.Get(secretId), Is.EqualTo("the-value"));
+        }
+
+        // #101 – Known secret identifier matching: the single-KnownSecret provider passes
+        // the configured secretId directly to GetSecretValue, so it works with any identifier
+        // shape (name, full ARN, partial ARN) that the Secrets Manager API accepts.
+
+        [Test, CustomAutoData]
+        [Description("#101: Configured by full ARN → response keys are rooted at the response Name.")]
+        public void Load_by_full_ARN_roots_keys_at_response_Name(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string fullArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == fullArn), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetSecretValueResponse { ARN = fullArn, Name = secretName, SecretString = "secret-value" });
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, fullArn, new SecretsManagerKnownSecretOptions());
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo("secret-value"));
+            // The full ARN must NOT be used as the config key root.
+            Assert.That(sut.HasKey(fullArn), Is.False);
+        }
+
+        [Test, CustomAutoData]
+        [Description("#101: Configured by secret name → the same name is used both as request id and config key root.")]
+        public void Load_by_name_uses_response_Name_as_config_key_root(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string secretName = "my-secret";
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == secretName), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetSecretValueResponse { ARN = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf", Name = secretName, SecretString = "secret-value" });
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, secretName, new SecretsManagerKnownSecretOptions());
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo("secret-value"));
+        }
+
+        [Test, CustomAutoData]
+        [Description("#101: Configured by partial ARN → the partial ARN is forwarded as-is to GetSecretValue; response keys are rooted at the response Name.")]
+        public void Load_by_partial_ARN_forwards_id_and_roots_keys_at_response_Name(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string partialArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret";
+            const string fullArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == partialArn), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetSecretValueResponse { ARN = fullArn, Name = secretName, SecretString = "secret-value" });
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, partialArn, new SecretsManagerKnownSecretOptions());
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo("secret-value"));
+            // The partial ARN must NOT be used as the config key root.
+            Assert.That(sut.HasKey(partialArn), Is.False);
         }
     }
 }

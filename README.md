@@ -211,7 +211,56 @@ dotnet add package AWSSDK.SecurityToken
 
 ---
 
-## Migration from earlier versions
+## Secret Identifier Forms
+
+How secrets are requested depends on the provider mode:
+
+* **`KnownSecret`** — passes the configured identifier directly to `GetSecretValue`. Any value accepted by that API (secret name or full ARN) works.
+* **`KnownSecrets` per-id path** (`UseBatchFetch = false`) — passes each configured identifier directly to `GetSecretValue`, same as above.
+* **`KnownSecrets` batch path** (`UseBatchFetch = true`, the default) — passes configured identifiers to `BatchGetSecretValue`, then matches returned entries by exact ARN or name. A **partial ARN** (the full ARN without the random six-character suffix, e.g. `arn:aws:secretsmanager:us-east-1:123456789012:secret:my-app/prod`) is also resolved via prefix match. If a partial ARN prefix matches more than one result, `InvalidOperationException` is thrown to prevent silently loading the wrong secret.
+* **`Discovery`** — uses the ARN and name returned by `ListSecrets`; callers do not provide secret ids directly.
+
+The resolved configuration keys are always rooted at the secret's **Name** as returned by Secrets Manager, regardless of the identifier form used to request it.
+
+---
+
+## Secrets Scheduled for Deletion
+
+The `ListSecrets` API may return secrets whose `DeletedDate` is set — these are secrets that have been scheduled for deletion but are still within the recovery window.
+
+**The library does not automatically skip these entries.** It will attempt to fetch them, and depending on the secret state and AWS API behavior, the fetch may fail. Callers that use discovery should filter them out explicitly:
+
+```csharp
+builder.AddSecretsManagerDiscovery(options =>
+{
+    // Skip secrets scheduled for deletion.
+    options.SecretFilter = entry => entry.DeletedDate == null;
+});
+```
+
+---
+
+## LocalStack / Local Development
+
+The library does not have a built-in LocalStack integration. You can target a LocalStack endpoint by configuring the `IAmazonSecretsManager` client before registering the provider:
+
+```csharp
+var client = new AmazonSecretsManagerClient(new AmazonSecretsManagerConfig
+{
+    ServiceURL = "http://localhost:4566",
+    AuthenticationRegion = "us-east-1"
+});
+
+builder.Configuration.AddSecretsManagerKnownSecrets(
+    secretIds: new[] { "my-secret" },
+    secretsManager: client);
+```
+
+For local development, prefer `KnownSecret` or `KnownSecrets` with stable secret names rather than ARNs. The `Discovery` provider fetches secrets by the ARN returned by `ListSecrets`, which LocalStack may regenerate between restarts. `KnownSecret(s)` with stable names sidestep this problem because the identifier you supply is passed directly to the API.
+
+---
+
+
 
 See [MIGRATION.md](MIGRATION.md) for the list of breaking changes.
 

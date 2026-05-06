@@ -94,22 +94,37 @@ namespace Tests.Internal
             Assert.That(capturedNames, Has.Member("secretsmanager ListSecrets"));
         }
 
-        [Test, CustomAutoData]
-        public void Load_emits_GetSecretValue_child_span(
-            [Frozen] SecretListEntry testEntry,
-            ListSecretsResponse listSecretsResponse,
-            GetSecretValueResponse getSecretValueResponse,
-            [Frozen] IAmazonSecretsManager secretsManager,
-            [Frozen] SecretsManagerDiscoveryOptions options,
-            SecretsManagerDiscoveryConfigurationProvider sut)
+        [Test]
+        public void Load_emits_GetSecretValue_child_span()
         {
-            options.UseBatchFetch = false;
-            Mock.Get(secretsManager)
+            const string secretName = "my-telemetry-secret";
+            const string secretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-telemetry-secret-AbCdEf";
+
+            var secretsManager = new Mock<IAmazonSecretsManager>();
+            secretsManager
                 .Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(listSecretsResponse);
-            Mock.Get(secretsManager)
+                .ReturnsAsync(new ListSecretsResponse
+                {
+                    SecretList = new List<SecretListEntry>
+                    {
+                        new SecretListEntry { ARN = secretArn, Name = secretName }
+                    }
+                });
+            secretsManager
                 .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(getSecretValueResponse);
+                .ReturnsAsync(new GetSecretValueResponse
+                {
+                    ARN = secretArn,
+                    Name = secretName,
+                    SecretString = "secret-value"
+                });
+
+            var options = new SecretsManagerDiscoveryOptions
+            {
+                UseBatchFetch = false,
+                SecretFilter = _ => true
+            };
+            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager.Object, options);
 
             Activity? captured = null;
             using var listener = new ActivityListener
@@ -127,8 +142,8 @@ namespace Tests.Internal
             sut.Load();
 
             Assert.That(captured, Is.Not.Null, "Expected a 'secretsmanager GetSecretValue' span.");
-            Assert.That(captured!.GetTagItem("aws.secretsmanager.secret.name"), Is.Not.Null);
-            Assert.That(captured.GetTagItem("aws.secretsmanager.secret.arn"), Is.Not.Null);
+            Assert.That(captured!.GetTagItem("aws.secretsmanager.secret.name"), Is.EqualTo(secretName));
+            Assert.That(captured.GetTagItem("aws.secretsmanager.secret.arn"), Is.EqualTo(secretArn));
         }
 
         [Test, CustomAutoData]
