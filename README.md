@@ -213,13 +213,12 @@ dotnet add package AWSSDK.SecurityToken
 
 ## Secret Identifier Forms
 
-All three provider modes accept any identifier form that the Secrets Manager API accepts:
+How secrets are requested depends on the provider mode:
 
-* **Secret name** – e.g. `my-app/prod`
-* **Full ARN** – e.g. `arn:aws:secretsmanager:us-east-1:123456789012:secret:my-app/prod-AbCdEf`
-* **Partial ARN** – e.g. `arn:aws:secretsmanager:us-east-1:123456789012:secret:my-app/prod` (without the random suffix; KnownSecrets batch path only)
-
-> **Note (KnownSecrets batch):** A partial ARN that matches more than one secret in the batch response throws `InvalidOperationException` to prevent silently loading the wrong secret. Use a more specific identifier when this occurs.
+* **`KnownSecret`** — passes the configured identifier directly to `GetSecretValue`. Any value accepted by that API (secret name or full ARN) works.
+* **`KnownSecrets` per-id path** (`UseBatchFetch = false`) — passes each configured identifier directly to `GetSecretValue`, same as above.
+* **`KnownSecrets` batch path** (`UseBatchFetch = true`, the default) — passes configured identifiers to `BatchGetSecretValue`, then matches returned entries by exact ARN or name. A **partial ARN** (the full ARN without the random six-character suffix, e.g. `arn:aws:secretsmanager:us-east-1:123456789012:secret:my-app/prod`) is also resolved via prefix match. If a partial ARN prefix matches more than one result, `InvalidOperationException` is thrown to prevent silently loading the wrong secret.
+* **`Discovery`** — uses the ARN and name returned by `ListSecrets`; callers do not provide secret ids directly.
 
 The resolved configuration keys are always rooted at the secret's **Name** as returned by Secrets Manager, regardless of the identifier form used to request it.
 
@@ -229,9 +228,7 @@ The resolved configuration keys are always rooted at the secret's **Name** as re
 
 The `ListSecrets` API may return secrets whose `DeletedDate` is set — these are secrets that have been scheduled for deletion but are still within the recovery window.
 
-**The library does not automatically skip secrets scheduled for deletion.** Attempting to fetch such a secret from AWS will result in a `MissingSecretValueException`.
-
-To skip these secrets, add a client-side filter to your discovery options:
+**The library does not automatically skip these entries.** It will attempt to fetch them, and depending on the secret state and AWS API behavior, the fetch may fail. Callers that use discovery should filter them out explicitly:
 
 ```csharp
 builder.AddSecretsManagerDiscovery(options =>
@@ -259,7 +256,7 @@ builder.Configuration.AddSecretsManagerKnownSecrets(
     secretsManager: client);
 ```
 
-Because the library requests secrets by the identifier you supply (name, full ARN, or partial ARN), stable secret names work reliably even when LocalStack regenerates ARN suffixes between restarts.
+For local development, prefer `KnownSecret` or `KnownSecrets` with stable secret names rather than ARNs. The `Discovery` provider fetches secrets by the ARN returned by `ListSecrets`, which LocalStack may regenerate between restarts. `KnownSecret(s)` with stable names sidestep this problem because the identifier you supply is passed directly to the API.
 
 ---
 

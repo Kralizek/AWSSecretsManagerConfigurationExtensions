@@ -475,5 +475,118 @@ namespace Tests.Internal
                 e => e.EventId == SecretsManagerLogEvents.LoadCompleted),
                 "Expected a LoadCompleted log event.");
         }
+
+        // ── Load failure / exception propagation ────────────────────────────────
+
+        [Test, CustomAutoData]
+        [Description("#86: An exception thrown during the initial load is propagated, not swallowed.")]
+        public void Initial_load_failure_propagates_exception(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            Mock.Get(secretsManager)
+                .Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("Simulated AWS network failure during initial load"));
+
+            var loggedEvents = new List<SecretsManagerLogEvent>();
+            var options = new SecretsManagerDiscoveryOptions
+            {
+                UseBatchFetch = false,
+                LogEvent = e => loggedEvents.Add(e)
+            };
+
+            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, options);
+
+            Assert.That(sut.Load, Throws.Exception.With.Message.EqualTo("Simulated AWS network failure during initial load"),
+                "Expected the initial load failure to propagate.");
+        }
+
+        [Test, CustomAutoData]
+        [Description("#86: A missing known secret on load propagates as MissingSecretValueException, not swallowed.")]
+        public void Missing_known_secret_propagates_as_MissingSecretValueException(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ResourceNotFoundException("Secret not found"));
+
+            var loggedEvents = new List<SecretsManagerLogEvent>();
+            var options = new SecretsManagerKnownSecretOptions
+            {
+                LogEvent = e => loggedEvents.Add(e)
+            };
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, "nonexistent-secret", options);
+
+            Assert.That(sut.Load, Throws.TypeOf<MissingSecretValueException>(),
+                "Expected a MissingSecretValueException for a secret that cannot be found.");
+        }
+
+        // ── Non-JSON / malformed-JSON secrets ────────────────────────────────────
+
+        [Test, CustomAutoData]
+        [Description("#86: A plain-string (non-JSON) secret is loaded as a raw string value, not treated as a parse error.")]
+        public void Non_JSON_secret_is_loaded_as_raw_string_value(
+            [Frozen] IAmazonSecretsManager secretsManager,
+            IFixture fixture)
+        {
+            const string secretName = "my-secret";
+            const string plainValue = "plain-password-value";  // does not start with { or [
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ListSecretsResponse
+                {
+                    SecretList = new List<SecretListEntry>
+                    {
+                        new SecretListEntry { ARN = "arn:my-secret", Name = secretName }
+                    }
+                });
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(fixture.Build<GetSecretValueResponse>()
+                    .With(p => p.Name, secretName)
+                    .With(p => p.SecretString, plainValue)
+                    .Without(p => p.SecretBinary)
+                    .Create());
+
+            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, new SecretsManagerDiscoveryOptions { UseBatchFetch = false });
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo(plainValue),
+                "A non-JSON secret string must be loaded as-is under the secret name key.");
+        }
+
+        [Test, CustomAutoData]
+        [Description("#86: A malformed-JSON secret (starts with '{' but is invalid JSON) is loaded as a raw string, not treated as a parse error.")]
+        public void Malformed_JSON_secret_is_loaded_as_raw_string_value(
+            [Frozen] IAmazonSecretsManager secretsManager,
+            IFixture fixture)
+        {
+            const string secretName = "my-secret";
+            const string malformedJson = "{not-valid-json}";  // starts with { but cannot be parsed as JSON
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ListSecretsResponse
+                {
+                    SecretList = new List<SecretListEntry>
+                    {
+                        new SecretListEntry { ARN = "arn:my-secret", Name = secretName }
+                    }
+                });
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(fixture.Build<GetSecretValueResponse>()
+                    .With(p => p.Name, secretName)
+                    .With(p => p.SecretString, malformedJson)
+                    .Without(p => p.SecretBinary)
+                    .Create());
+
+            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, new SecretsManagerDiscoveryOptions { UseBatchFetch = false });
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo(malformedJson),
+                "A malformed-JSON secret string must be loaded as-is under the secret name key.");
+        }
     }
 }

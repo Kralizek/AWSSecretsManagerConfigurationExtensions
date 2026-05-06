@@ -216,6 +216,7 @@ namespace Tests.Internal
         }
 
         [Test, CustomAutoData]
+        [Description("#101: An unknown or unresolvable identifier causes MissingSecretValueException.")]
         public void Should_throw_on_missing_secret([Frozen] IAmazonSecretsManager secretsManager)
         {
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).Throws(new ResourceNotFoundException("Oops"));
@@ -366,6 +367,27 @@ namespace Tests.Internal
             sut.Load();
 
             Assert.That(sut.Get(secretName), Is.EqualTo("secret-value"));
+        }
+
+        [Test, CustomAutoData]
+        [Description("#101: Configured by partial ARN → the partial ARN is forwarded as-is to GetSecretValue; response keys are rooted at the response Name.")]
+        public void Load_by_partial_ARN_forwards_id_and_roots_keys_at_response_Name(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string partialArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret";
+            const string fullArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == partialArn), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetSecretValueResponse { ARN = fullArn, Name = secretName, SecretString = "secret-value" });
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, partialArn, new SecretsManagerKnownSecretOptions());
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo("secret-value"));
+            // The partial ARN must NOT be used as the config key root.
+            Assert.That(sut.HasKey(partialArn), Is.False);
         }
     }
 }
