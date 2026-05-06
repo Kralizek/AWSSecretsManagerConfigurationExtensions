@@ -385,5 +385,142 @@ namespace Tests.Internal
             Mock.Get(changeCallback).Verify(c => c(changeCallbackState));
             Assert.That(sut.Get(secretName), Is.EqualTo("updated"));
         }
+
+        // #101 – Known secret identifier matching: batch and per-id paths must resolve secrets
+        // addressed by full ARN, partial ARN, or secret name without silently dropping matches.
+
+        [Test, CustomAutoData]
+        [Description("#101: Batch path must load a secret when it is configured by its exact full ARN.")]
+        public void Batch_resolves_secret_configured_by_full_ARN(
+            [Frozen] IAmazonSecretsManager secretsManager,
+            IFixture fixture)
+        {
+            const string fullArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+
+            var batchResponse = fixture.Build<BatchGetSecretValueResponse>()
+                .With(p => p.SecretValues, new List<SecretValueEntry>
+                {
+                    new SecretValueEntry { ARN = fullArn, Name = secretName, SecretString = "secret-value" }
+                })
+                .With(p => p.Errors, new List<APIErrorType>())
+                .Without(p => p.NextToken)
+                .Create();
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(batchResponse);
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { fullArn }, new SecretsManagerKnownSecretsOptions());
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo("secret-value"));
+        }
+
+        [Test, CustomAutoData]
+        [Description("#101: Batch path must load a secret when it is configured by its secret name (not ARN).")]
+        public void Batch_resolves_secret_configured_by_name(
+            [Frozen] IAmazonSecretsManager secretsManager,
+            IFixture fixture)
+        {
+            const string fullArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+
+            var batchResponse = fixture.Build<BatchGetSecretValueResponse>()
+                .With(p => p.SecretValues, new List<SecretValueEntry>
+                {
+                    new SecretValueEntry { ARN = fullArn, Name = secretName, SecretString = "secret-value" }
+                })
+                .With(p => p.Errors, new List<APIErrorType>())
+                .Without(p => p.NextToken)
+                .Create();
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(batchResponse);
+
+            // Configured by name; the response has the same Name value.
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { secretName }, new SecretsManagerKnownSecretsOptions());
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo("secret-value"));
+        }
+
+        [Test, CustomAutoData]
+        [Description("#101: Per-id path must load a secret when it is configured by its full ARN.")]
+        public void GetSecretValue_resolves_secret_configured_by_full_ARN(
+            [Frozen] IAmazonSecretsManager secretsManager,
+            IFixture fixture)
+        {
+            const string fullArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+
+            var response = fixture.Build<GetSecretValueResponse>()
+                .With(p => p.ARN, fullArn)
+                .With(p => p.Name, secretName)
+                .With(p => p.SecretString, "secret-value")
+                .Without(p => p.SecretBinary)
+                .Create();
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == fullArn), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { fullArn }, new SecretsManagerKnownSecretsOptions { UseBatchFetch = false });
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo("secret-value"));
+        }
+
+        // #103 – AWS SDK v4 compatibility: CreatedDate is DateTime? in v4.
+        // These tests verify that a response with or without CreatedDate does not break loading.
+
+        [Test, CustomAutoData]
+        [Description("#103: GetSecretValueResponse with CreatedDate = null must not break loading.")]
+        public void Load_succeeds_when_GetSecretValueResponse_has_null_CreatedDate(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string secretName = "my-secret";
+            var response = new GetSecretValueResponse
+            {
+                ARN = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf",
+                Name = secretName,
+                SecretString = "the-value",
+                CreatedDate = null
+            };
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { secretName }, new SecretsManagerKnownSecretsOptions { UseBatchFetch = false });
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo("the-value"));
+        }
+
+        [Test, CustomAutoData]
+        [Description("#103: GetSecretValueResponse with CreatedDate = DateTime.UtcNow must not break loading.")]
+        public void Load_succeeds_when_GetSecretValueResponse_has_non_null_CreatedDate(
+            [Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string secretName = "my-secret";
+            var response = new GetSecretValueResponse
+            {
+                ARN = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf",
+                Name = secretName,
+                SecretString = "the-value",
+                CreatedDate = DateTime.UtcNow
+            };
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { secretName }, new SecretsManagerKnownSecretsOptions { UseBatchFetch = false });
+            sut.Load();
+
+            Assert.That(sut.Get(secretName), Is.EqualTo("the-value"));
+        }
     }
 }
