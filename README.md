@@ -274,6 +274,9 @@ See [MIGRATION.md](MIGRATION.md) for the list of breaking changes.
 * [Storing secrets CORRECTLY in .NET using AWS Secrets Manager](https://www.youtube.com/watch?v=BGW4FnEB-CM) by [Nick Chapsas](https://github.com/Elfocrash)
 * [Effortless Secret Management in .NET Using AWS Secrets Manager](https://www.youtube.com/watch?v=hDVdLNJfaNU) by [Milan Jovanović](https://github.com/m-jovanovic)
 * [Securely Integrate AWS Secrets Manager into Your ASP.NET Core API](https://blog.stackademic.com/how-to-integrate-aws-secrets-manager-into-your-asp-net-api-project-d52b3658e676) by [Javier Eduardo Mendoza Blandón](https://medium.com/@javiermendozablandon)
+* [How Best To Secure Secrets When Building .NET Applications on AWS](https://www.rahulpnath.com/blog/aws-secrets-manager/) by [Rahul Nath](https://www.rahulpnath.com/)
+* [Guides: AWS Lambda (.NET C#)](https://docs.ravendb.net/start/guides/aws-lambda/overview) by RavenDB
+* [Cloud configuration providers](https://github.com/beminee/ConfigBoundNET/blob/main/docs/cloud-providers.md) by ConfigBoundNET
 * [Cloud Fundamentals: AWS Services for C# Developers](https://dometrain.com/course/cloud-fundamentals-aws-services-for-c-developers/) by [Nick Chapsas](https://github.com/Elfocrash)
 
 ## Stargazers over time
