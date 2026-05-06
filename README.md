@@ -211,7 +211,59 @@ dotnet add package AWSSDK.SecurityToken
 
 ---
 
-## Migration from earlier versions
+## Secret Identifier Forms
+
+All three provider modes accept any identifier form that the Secrets Manager API accepts:
+
+* **Secret name** – e.g. `my-app/prod`
+* **Full ARN** – e.g. `arn:aws:secretsmanager:us-east-1:123456789012:secret:my-app/prod-AbCdEf`
+* **Partial ARN** – e.g. `arn:aws:secretsmanager:us-east-1:123456789012:secret:my-app/prod` (without the random suffix; KnownSecrets batch path only)
+
+> **Note (KnownSecrets batch):** A partial ARN that matches more than one secret in the batch response throws `InvalidOperationException` to prevent silently loading the wrong secret. Use a more specific identifier when this occurs.
+
+The resolved configuration keys are always rooted at the secret's **Name** as returned by Secrets Manager, regardless of the identifier form used to request it.
+
+---
+
+## Secrets Scheduled for Deletion
+
+The `ListSecrets` API may return secrets whose `DeletedDate` is set — these are secrets that have been scheduled for deletion but are still within the recovery window.
+
+**The library does not automatically skip secrets scheduled for deletion.** Attempting to fetch such a secret from AWS will result in a `MissingSecretValueException`.
+
+To skip these secrets, add a client-side filter to your discovery options:
+
+```csharp
+builder.AddSecretsManagerDiscovery(options =>
+{
+    // Skip secrets scheduled for deletion.
+    options.SecretFilter = entry => entry.DeletedDate == null;
+});
+```
+
+---
+
+## LocalStack / Local Development
+
+The library does not have a built-in LocalStack integration. You can target a LocalStack endpoint by configuring the `IAmazonSecretsManager` client before registering the provider:
+
+```csharp
+var client = new AmazonSecretsManagerClient(new AmazonSecretsManagerConfig
+{
+    ServiceURL = "http://localhost:4566",
+    AuthenticationRegion = "us-east-1"
+});
+
+builder.Configuration.AddSecretsManagerKnownSecrets(
+    secretIds: new[] { "my-secret" },
+    secretsManager: client);
+```
+
+Because the library requests secrets by the identifier you supply (name, full ARN, or partial ARN), stable secret names work reliably even when LocalStack regenerates ARN suffixes between restarts.
+
+---
+
+
 
 See [MIGRATION.md](MIGRATION.md) for the list of breaking changes.
 
