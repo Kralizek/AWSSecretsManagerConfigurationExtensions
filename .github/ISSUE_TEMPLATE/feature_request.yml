@@ -1,0 +1,55 @@
+name: Feature Request
+description: Suggest an idea or improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. Please fill in the details below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve? Why is the current behaviour insufficient?
+      placeholder: |
+        Example: "I want to automatically rotate secrets without reloading the application..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the change or feature you would like to see.
+      placeholder: |
+        Example: "Add a RefreshInterval option to automatically poll Secrets Manager for updates..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      description: Which loading mode(s) would this affect?
+      multiple: true
+      options:
+        - Discovery
+        - KnownSecrets
+        - KnownSecret
+        - All modes
+        - Other / N/A
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered any workarounds or alternative approaches?
+      placeholder: "Example: I could use X instead, but..."
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Any other context, links, or examples that might help.
+      placeholder: Links to AWS documentation, related issues, or code samples
