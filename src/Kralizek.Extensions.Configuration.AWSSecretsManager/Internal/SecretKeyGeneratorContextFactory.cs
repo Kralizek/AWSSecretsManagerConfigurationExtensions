@@ -14,9 +14,9 @@ namespace Kralizek.Extensions.Configuration.Internal
             string defaultKey,
             string? rootKey = null)
         {
-            var resolvedSecretId = !string.IsNullOrEmpty(secretId) ? secretId : secretName ?? string.Empty;
-            var resolvedSecretName = !string.IsNullOrEmpty(secretName) ? secretName : resolvedSecretId;
-            var resolvedRootKey = !string.IsNullOrEmpty(rootKey) ? rootKey : resolvedSecretName;
+            var resolvedSecretId = !string.IsNullOrEmpty(secretId) ? secretId! : secretName ?? string.Empty;
+            var resolvedSecretName = !string.IsNullOrEmpty(secretName) ? secretName! : resolvedSecretId;
+            var resolvedRootKey = !string.IsNullOrEmpty(rootKey) ? rootKey! : resolvedSecretName;
 
             return new SecretKeyGeneratorContext
             {
@@ -36,8 +36,8 @@ namespace Kralizek.Extensions.Configuration.Internal
             string rawKey,
             string defaultKey)
         {
-            var resolvedSecretId = !string.IsNullOrEmpty(secretId) ? secretId : secretName ?? string.Empty;
-            var resolvedSecretName = !string.IsNullOrEmpty(secretName) ? secretName : resolvedSecretId;
+            var resolvedSecretId = !string.IsNullOrEmpty(secretId) ? secretId! : secretName ?? string.Empty;
+            var resolvedSecretName = !string.IsNullOrEmpty(secretName) ? secretName! : resolvedSecretId;
 
             return new SecretKeyGeneratorContext
             {
