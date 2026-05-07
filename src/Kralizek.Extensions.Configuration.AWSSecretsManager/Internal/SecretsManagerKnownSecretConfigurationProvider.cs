@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -86,41 +85,30 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, rootKey))
                 {
-                    var context = CreateKeyGeneratorContext(secretEntry, _secretId, key, key, GetJsonPath(rootKey, key));
+                    var context = SecretKeyGeneratorContextFactory.Create(
+                        _secretId,
+                        secretEntry.Name ?? _secretId,
+                        secretEntry.ARN,
+                        key,
+                        key);
                     var configKey = _options.KeyGenerator(context);
                     ApplyEntry(dict, configKey, value);
                 }
             }
             else
             {
-                var context = CreateKeyGeneratorContext(secretEntry, _secretId, rootKey, rootKey, jsonPath: null);
+                var context = SecretKeyGeneratorContextFactory.CreateScalar(
+                    _secretId,
+                    secretEntry.Name ?? _secretId,
+                    secretEntry.ARN,
+                    rootKey,
+                    rootKey);
                 var configKey = _options.KeyGenerator(context);
                 ApplyEntry(dict, configKey, secretString);
             }
 
             Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded.", args: rootKey);
             return dict;
-        }
-
-        private static SecretKeyGeneratorContext CreateKeyGeneratorContext(SecretListEntry secretEntry, string secretId, string rawKey, string defaultKey, string? jsonPath)
-        {
-            return new SecretKeyGeneratorContext
-            {
-                SecretId = secretId,
-                SecretName = secretEntry.Name ?? secretId,
-                SecretArn = secretEntry.ARN,
-                RawKey = rawKey,
-                DefaultKey = defaultKey,
-                JsonPath = jsonPath
-            };
-        }
-
-        private static string? GetJsonPath(string rootKey, string defaultKey)
-        {
-            var prefix = $"{rootKey}{ConfigurationPath.KeyDelimiter}";
-            return defaultKey.StartsWith(prefix, StringComparison.Ordinal)
-                ? defaultKey.Substring(prefix.Length)
-                : defaultKey;
         }
     }
 }

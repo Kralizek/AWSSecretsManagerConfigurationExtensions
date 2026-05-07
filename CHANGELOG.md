@@ -17,8 +17,6 @@ For **breaking changes**, see [`MIGRATION.md`](MIGRATION.md).
 
 ### Changed
 
-- `KeyGenerator` is now context-based across Discovery, KnownSecrets, and KnownSecret modes. It now receives `SecretKeyGeneratorContext` and defaults to `context => context.DefaultKey` (beta-breaking adjustment before 2.0 stable).
-
 ### Deprecated
 
 ### Removed

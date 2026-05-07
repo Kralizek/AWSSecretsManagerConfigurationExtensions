@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Kralizek.Extensions.Configuration.Internal
@@ -220,49 +219,33 @@ namespace Kralizek.Extensions.Configuration.Internal
         private void ProcessSecretString(Dictionary<string, string?> dict, SecretListEntry secret, string secretString)
         {
             var secretId = !string.IsNullOrEmpty(secret.ARN) ? secret.ARN : secret.Name;
+            var resolvedSecretId = !string.IsNullOrEmpty(secretId) ? secretId : secret.Name ?? string.Empty;
+            var resolvedSecretName = secret.Name ?? resolvedSecretId;
             if (SecretsManagerHelpers.TryParseJson(secretString, out var jElement))
             {
-                foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, secret.Name))
+                foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, resolvedSecretName))
                 {
-                    var context = CreateKeyGeneratorContext(secret, secretId, key, key, GetJsonPath(secret.Name, key));
+                    var context = SecretKeyGeneratorContextFactory.Create(
+                        resolvedSecretId,
+                        resolvedSecretName,
+                        secret.ARN,
+                        key,
+                        key);
                     var configKey = _options.KeyGenerator(context);
                     ApplyEntry(dict, configKey, value);
                 }
             }
             else
             {
-                var context = CreateKeyGeneratorContext(secret, secretId, secret.Name, secret.Name, jsonPath: null);
+                var context = SecretKeyGeneratorContextFactory.CreateScalar(
+                    resolvedSecretId,
+                    resolvedSecretName,
+                    secret.ARN,
+                    resolvedSecretName,
+                    resolvedSecretName);
                 var configKey = _options.KeyGenerator(context);
                 ApplyEntry(dict, configKey, secretString);
             }
-        }
-
-        private static SecretKeyGeneratorContext CreateKeyGeneratorContext(SecretListEntry secret, string? secretId, string rawKey, string defaultKey, string? jsonPath)
-        {
-            var resolvedSecretId = !string.IsNullOrEmpty(secretId)
-                ? secretId!
-                : secret.Name ?? string.Empty;
-
-            return new SecretKeyGeneratorContext
-            {
-                SecretId = resolvedSecretId,
-                SecretName = secret.Name ?? resolvedSecretId,
-                SecretArn = secret.ARN,
-                RawKey = rawKey,
-                DefaultKey = defaultKey,
-                JsonPath = jsonPath
-            };
-        }
-
-        private static string? GetJsonPath(string? rootKey, string defaultKey)
-        {
-            if (string.IsNullOrEmpty(rootKey))
-                return defaultKey;
-
-            var prefix = $"{rootKey}{ConfigurationPath.KeyDelimiter}";
-            return defaultKey.StartsWith(prefix, StringComparison.Ordinal)
-                ? defaultKey.Substring(prefix.Length)
-                : defaultKey;
         }
     }
 }
