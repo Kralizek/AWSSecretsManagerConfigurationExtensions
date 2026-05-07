@@ -20,7 +20,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 SecretArn = secretArn,
                 RawKey = rawKey,
                 DefaultKey = defaultKey,
-                JsonPath = TryGetJsonPath(secretName, defaultKey)
+                JsonPath = GetJsonPath(secretName, defaultKey)
             };
         }
 
@@ -42,7 +42,7 @@ namespace Kralizek.Extensions.Configuration.Internal
             };
         }
 
-        private static string? TryGetJsonPath(string secretName, string defaultKey)
+        private static string? GetJsonPath(string secretName, string defaultKey)
         {
             var prefix = $"{secretName}{ConfigurationPath.KeyDelimiter}";
 
