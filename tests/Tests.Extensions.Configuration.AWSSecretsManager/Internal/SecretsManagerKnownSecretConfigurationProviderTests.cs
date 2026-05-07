@@ -257,6 +257,14 @@ namespace Tests.Internal
             Assert.That(keyGenerator.Contexts, Has.Count.EqualTo(2));
             Assert.That(sut.Get($"{SecretKeyGeneratorContextTestData.SecretName}:TopLevel"), Is.EqualTo("one"));
             Assert.That(sut.Get($"{SecretKeyGeneratorContextTestData.SecretName}:Nested:Second"), Is.EqualTo("two"));
+            Assert.That(keyGenerator.Contexts.All(context => context.HasJsonPath), Is.True);
+            Assert.That(
+                keyGenerator.Contexts.Select(context => context.DefaultKey),
+                Is.EquivalentTo(new[]
+                {
+                    $"{SecretKeyGeneratorContextTestData.SecretName}:TopLevel",
+                    $"{SecretKeyGeneratorContextTestData.SecretName}:Nested:Second"
+                }));
 
             var topLevelContext = keyGenerator.Contexts.Single(context => context.JsonPath == "TopLevel");
             var nestedContext = keyGenerator.Contexts.Single(context => context.JsonPath == "Nested:Second");
