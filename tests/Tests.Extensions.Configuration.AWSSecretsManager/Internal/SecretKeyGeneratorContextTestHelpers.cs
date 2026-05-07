@@ -44,11 +44,7 @@ namespace Tests.Internal
             string expectedKey,
             string expectedJsonPath)
         {
-            Assert.That(context.SecretId, Is.EqualTo(expectedSecretId));
-            Assert.That(context.SecretName, Is.EqualTo(expectedSecretName));
-            Assert.That(context.SecretArn, Is.EqualTo(expectedSecretArn));
-            Assert.That(context.RawKey, Is.EqualTo(expectedKey));
-            Assert.That(context.DefaultKey, Is.EqualTo(expectedKey));
+            AssertContextCore(context, expectedSecretId, expectedSecretName, expectedSecretArn, expectedKey);
             Assert.That(context.JsonPath, Is.EqualTo(expectedJsonPath));
             Assert.That(context.HasJsonPath, Is.True);
         }
@@ -60,13 +56,23 @@ namespace Tests.Internal
             string expectedSecretArn,
             string expectedKey)
         {
+            AssertContextCore(context, expectedSecretId, expectedSecretName, expectedSecretArn, expectedKey);
+            Assert.That(context.JsonPath, Is.Null);
+            Assert.That(context.HasJsonPath, Is.False);
+        }
+
+        private static void AssertContextCore(
+            SecretKeyGeneratorContext context,
+            string expectedSecretId,
+            string expectedSecretName,
+            string expectedSecretArn,
+            string expectedKey)
+        {
             Assert.That(context.SecretId, Is.EqualTo(expectedSecretId));
             Assert.That(context.SecretName, Is.EqualTo(expectedSecretName));
             Assert.That(context.SecretArn, Is.EqualTo(expectedSecretArn));
             Assert.That(context.RawKey, Is.EqualTo(expectedKey));
             Assert.That(context.DefaultKey, Is.EqualTo(expectedKey));
-            Assert.That(context.JsonPath, Is.Null);
-            Assert.That(context.HasJsonPath, Is.False);
         }
     }
 
@@ -91,14 +97,14 @@ namespace Tests.Internal
         {
             Mock.Get(secretsManager)
                 .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new GetSecretValueResponse { ARN = SecretArn, Name = SecretName, SecretString = secretValue });
+                .ReturnsAsync(CreateGetSecretValueResponse(secretValue));
         }
 
         public static void SetupGetSecretValueForConfiguredSecretId(IAmazonSecretsManager secretsManager, string configuredSecretId, string secretValue)
         {
             Mock.Get(secretsManager)
                 .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == configuredSecretId), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new GetSecretValueResponse { ARN = SecretArn, Name = SecretName, SecretString = secretValue });
+                .ReturnsAsync(CreateGetSecretValueResponse(secretValue));
         }
 
         public static void SetupBatchGetSecretValueAny(IAmazonSecretsManager secretsManager, string secretValue)
@@ -110,6 +116,16 @@ namespace Tests.Internal
                     SecretValues = new List<SecretValueEntry> { new SecretValueEntry { ARN = SecretArn, Name = SecretName, SecretString = secretValue } },
                     Errors = new List<APIErrorType>()
                 });
+        }
+
+        private static GetSecretValueResponse CreateGetSecretValueResponse(string secretValue)
+        {
+            return new GetSecretValueResponse
+            {
+                ARN = SecretArn,
+                Name = SecretName,
+                SecretString = secretValue
+            };
         }
     }
 }
