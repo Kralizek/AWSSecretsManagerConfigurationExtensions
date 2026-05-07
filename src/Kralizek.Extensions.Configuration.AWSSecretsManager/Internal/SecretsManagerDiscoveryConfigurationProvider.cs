@@ -219,30 +219,31 @@ namespace Kralizek.Extensions.Configuration.Internal
         private void ProcessSecretString(Dictionary<string, string?> dict, SecretListEntry secret, string secretString)
         {
             var secretId = !string.IsNullOrEmpty(secret.ARN) ? secret.ARN : secret.Name;
-            var resolvedSecretId = !string.IsNullOrEmpty(secretId) ? secretId : secret.Name ?? string.Empty;
-            var resolvedSecretName = secret.Name ?? resolvedSecretId;
             if (SecretsManagerHelpers.TryParseJson(secretString, out var jElement))
             {
-                foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, resolvedSecretName))
+                var rootKey = secret.Name ?? secretId ?? string.Empty;
+                foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, rootKey))
                 {
                     var context = SecretKeyGeneratorContextFactory.Create(
-                        resolvedSecretId,
-                        resolvedSecretName,
+                        secretId,
+                        secret.Name,
                         secret.ARN,
                         key,
-                        key);
+                        key,
+                        rootKey);
                     var configKey = _options.KeyGenerator(context);
                     ApplyEntry(dict, configKey, value);
                 }
             }
             else
             {
+                var scalarKey = secret.Name ?? secretId ?? string.Empty;
                 var context = SecretKeyGeneratorContextFactory.CreateScalar(
-                    resolvedSecretId,
-                    resolvedSecretName,
+                    secretId,
+                    secret.Name,
                     secret.ARN,
-                    resolvedSecretName,
-                    resolvedSecretName);
+                    scalarKey,
+                    scalarKey);
                 var configKey = _options.KeyGenerator(context);
                 ApplyEntry(dict, configKey, secretString);
             }
