@@ -240,7 +240,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         private static SecretKeyGeneratorContext CreateKeyGeneratorContext(SecretListEntry secret, string? secretId, string rawKey, string defaultKey, string? jsonPath)
         {
             var resolvedSecretId = !string.IsNullOrEmpty(secretId)
-                ? secretId
+                ? secretId!
                 : secret.Name ?? string.Empty;
 
             return new SecretKeyGeneratorContext

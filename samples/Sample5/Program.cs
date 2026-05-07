@@ -4,7 +4,7 @@ var builder = new ConfigurationBuilder();
 
 builder.AddSecretsManagerDiscovery(options =>
 {
-    options.KeyGenerator = (entry, key) => key.ToUpper();
+    options.KeyGenerator = context => context.DefaultKey.ToUpper();
 });
 
 var configuration = builder.Build();
