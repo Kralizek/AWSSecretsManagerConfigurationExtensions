@@ -1,6 +1,12 @@
 using System.Collections.Generic;
+using System.Threading;
+
+using Amazon.SecretsManager;
+using Amazon.SecretsManager.Model;
 
 using Kralizek.Extensions.Configuration;
+
+using Moq;
 
 using NUnit.Framework;
 
@@ -61,6 +67,49 @@ namespace Tests.Internal
             Assert.That(context.DefaultKey, Is.EqualTo(expectedKey));
             Assert.That(context.JsonPath, Is.Null);
             Assert.That(context.HasJsonPath, Is.False);
+        }
+    }
+
+    internal static class SecretKeyGeneratorContextTestData
+    {
+        public const string ConfiguredSecretId = "configured-secret-id";
+        public const string SecretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+        public const string SecretName = "my-secret";
+        public const string JsonSecretValue = "{\"Property\":\"value\"}";
+        public const string ScalarSecretValue = "value";
+        public const string JsonPath = "Property";
+        public const string JsonGeneratedKey = "my-secret:Property";
+
+        public static void SetupDiscoverySecretList(IAmazonSecretsManager secretsManager)
+        {
+            Mock.Get(secretsManager)
+                .Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ListSecretsResponse { SecretList = new List<SecretListEntry> { new SecretListEntry { ARN = SecretArn, Name = SecretName } } });
+        }
+
+        public static void SetupGetSecretValueAny(IAmazonSecretsManager secretsManager, string secretValue)
+        {
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetSecretValueResponse { ARN = SecretArn, Name = SecretName, SecretString = secretValue });
+        }
+
+        public static void SetupGetSecretValueForConfiguredSecretId(IAmazonSecretsManager secretsManager, string configuredSecretId, string secretValue)
+        {
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == configuredSecretId), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetSecretValueResponse { ARN = SecretArn, Name = SecretName, SecretString = secretValue });
+        }
+
+        public static void SetupBatchGetSecretValueAny(IAmazonSecretsManager secretsManager, string secretValue)
+        {
+            Mock.Get(secretsManager)
+                .Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BatchGetSecretValueResponse
+                {
+                    SecretValues = new List<SecretValueEntry> { new SecretValueEntry { ARN = SecretArn, Name = SecretName, SecretString = secretValue } },
+                    Errors = new List<APIErrorType>()
+                });
         }
     }
 }

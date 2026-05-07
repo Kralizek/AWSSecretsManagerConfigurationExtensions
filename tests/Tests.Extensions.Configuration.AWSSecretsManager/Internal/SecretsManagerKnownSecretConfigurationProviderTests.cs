@@ -202,13 +202,7 @@ namespace Tests.Internal
         [Test, CustomAutoData]
         public void Key_generator_context_is_populated_for_json_key_in_known_secret_mode([Frozen] IAmazonSecretsManager secretsManager)
         {
-            const string configuredSecretId = "configured-secret-id";
-            const string secretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
-            const string secretName = "my-secret";
-            const string secretString = "{\"Property\":\"value\"}";
-
-            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new GetSecretValueResponse { ARN = secretArn, Name = secretName, SecretString = secretString });
+            SecretKeyGeneratorContextTestData.SetupGetSecretValueAny(secretsManager, SecretKeyGeneratorContextTestData.JsonSecretValue);
 
             var keyGenerator = new CapturingKeyGenerator();
             var options = new SecretsManagerKnownSecretOptions
@@ -216,28 +210,22 @@ namespace Tests.Internal
                 KeyGenerator = keyGenerator.Generate
             };
 
-            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, configuredSecretId, options);
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, SecretKeyGeneratorContextTestData.ConfiguredSecretId, options);
             sut.Load();
 
             SecretKeyGeneratorContextAssertions.AssertJsonContext(
                 keyGenerator.SingleContext,
-                expectedSecretId: configuredSecretId,
-                expectedSecretName: secretName,
-                expectedSecretArn: secretArn,
-                expectedKey: "my-secret:Property",
-                expectedJsonPath: "Property");
+                expectedSecretId: SecretKeyGeneratorContextTestData.ConfiguredSecretId,
+                expectedSecretName: SecretKeyGeneratorContextTestData.SecretName,
+                expectedSecretArn: SecretKeyGeneratorContextTestData.SecretArn,
+                expectedKey: SecretKeyGeneratorContextTestData.JsonGeneratedKey,
+                expectedJsonPath: SecretKeyGeneratorContextTestData.JsonPath);
         }
 
         [Test, CustomAutoData]
         public void Key_generator_context_is_populated_for_scalar_key_in_known_secret_mode([Frozen] IAmazonSecretsManager secretsManager)
         {
-            const string configuredSecretId = "configured-secret-id";
-            const string secretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
-            const string secretName = "my-secret";
-            const string secretValue = "value";
-
-            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new GetSecretValueResponse { ARN = secretArn, Name = secretName, SecretString = secretValue });
+            SecretKeyGeneratorContextTestData.SetupGetSecretValueAny(secretsManager, SecretKeyGeneratorContextTestData.ScalarSecretValue);
 
             var keyGenerator = new CapturingKeyGenerator();
             var options = new SecretsManagerKnownSecretOptions
@@ -245,15 +233,15 @@ namespace Tests.Internal
                 KeyGenerator = keyGenerator.Generate
             };
 
-            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, configuredSecretId, options);
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, SecretKeyGeneratorContextTestData.ConfiguredSecretId, options);
             sut.Load();
 
             SecretKeyGeneratorContextAssertions.AssertScalarContext(
                 keyGenerator.SingleContext,
-                expectedSecretId: configuredSecretId,
-                expectedSecretName: secretName,
-                expectedSecretArn: secretArn,
-                expectedKey: secretName);
+                expectedSecretId: SecretKeyGeneratorContextTestData.ConfiguredSecretId,
+                expectedSecretName: SecretKeyGeneratorContextTestData.SecretName,
+                expectedSecretArn: SecretKeyGeneratorContextTestData.SecretArn,
+                expectedKey: SecretKeyGeneratorContextTestData.SecretName);
         }
 
         [Test, CustomAutoData]
