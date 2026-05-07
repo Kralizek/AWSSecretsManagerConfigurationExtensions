@@ -212,28 +212,23 @@ namespace Tests.Internal
                 .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == configuredSecretId), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new GetSecretValueResponse { ARN = secretArn, Name = secretName, SecretString = secretString });
 
-            SecretKeyGeneratorContext? captured = null;
+            var keyGenerator = new CapturingKeyGenerator();
             var options = new SecretsManagerKnownSecretsOptions
             {
                 UseBatchFetch = false,
-                KeyGenerator = context =>
-                {
-                    captured = context;
-                    return context.DefaultKey;
-                }
+                KeyGenerator = keyGenerator.Generate
             };
 
             var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { configuredSecretId }, options);
             sut.Load();
 
-            Assert.That(captured, Is.Not.Null);
-            Assert.That(captured!.SecretId, Is.EqualTo(configuredSecretId));
-            Assert.That(captured.SecretName, Is.EqualTo(secretName));
-            Assert.That(captured.SecretArn, Is.EqualTo(secretArn));
-            Assert.That(captured.RawKey, Is.EqualTo("my-secret:Property"));
-            Assert.That(captured.DefaultKey, Is.EqualTo("my-secret:Property"));
-            Assert.That(captured.JsonPath, Is.EqualTo("Property"));
-            Assert.That(captured.HasJsonPath, Is.True);
+            SecretKeyGeneratorContextAssertions.AssertJsonContext(
+                keyGenerator.SingleContext,
+                expectedSecretId: configuredSecretId,
+                expectedSecretName: secretName,
+                expectedSecretArn: secretArn,
+                expectedKey: "my-secret:Property",
+                expectedJsonPath: "Property");
         }
 
         [Test, CustomAutoData]
@@ -256,27 +251,21 @@ namespace Tests.Internal
             Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(batchResponse);
 
-            SecretKeyGeneratorContext? captured = null;
+            var keyGenerator = new CapturingKeyGenerator();
             var options = new SecretsManagerKnownSecretsOptions
             {
-                KeyGenerator = context =>
-                {
-                    captured = context;
-                    return context.DefaultKey;
-                }
+                KeyGenerator = keyGenerator.Generate
             };
 
             var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { configuredSecretId }, options);
             sut.Load();
 
-            Assert.That(captured, Is.Not.Null);
-            Assert.That(captured!.SecretId, Is.EqualTo(configuredSecretId));
-            Assert.That(captured.SecretName, Is.EqualTo(secretName));
-            Assert.That(captured.SecretArn, Is.EqualTo(secretArn));
-            Assert.That(captured.RawKey, Is.EqualTo(secretName));
-            Assert.That(captured.DefaultKey, Is.EqualTo(secretName));
-            Assert.That(captured.JsonPath, Is.Null);
-            Assert.That(captured.HasJsonPath, Is.False);
+            SecretKeyGeneratorContextAssertions.AssertScalarContext(
+                keyGenerator.SingleContext,
+                expectedSecretId: configuredSecretId,
+                expectedSecretName: secretName,
+                expectedSecretArn: secretArn,
+                expectedKey: secretName);
         }
 
         [Test, CustomAutoData]
