@@ -200,7 +200,7 @@ namespace Tests.Internal
             {
                 UseBatchFetch = false,
                 DuplicateKeyHandling = DuplicateKeyHandling.FirstWins,
-                KeyGenerator = (_, _) => duplicateKey,
+                KeyGenerator = _ => duplicateKey,
                 LogEvent = e => loggedEvents.Add(e)
             };
 
@@ -239,7 +239,7 @@ namespace Tests.Internal
             {
                 UseBatchFetch = false,
                 DuplicateKeyHandling = DuplicateKeyHandling.LastWins,
-                KeyGenerator = (_, _) => duplicateKey,
+                KeyGenerator = _ => duplicateKey,
                 LogEvent = e => loggedEvents.Add(e)
             };
 
@@ -279,7 +279,7 @@ namespace Tests.Internal
             {
                 UseBatchFetch = false,
                 DuplicateKeyHandling = DuplicateKeyHandling.FirstWins,
-                KeyGenerator = (_, _) => duplicateKey,
+                KeyGenerator = _ => duplicateKey,
                 LogEvent = e => loggedEvents.Add(e)
             };
 

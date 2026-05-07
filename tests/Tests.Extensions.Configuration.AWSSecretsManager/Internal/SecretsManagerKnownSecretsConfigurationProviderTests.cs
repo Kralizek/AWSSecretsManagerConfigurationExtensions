@@ -168,7 +168,7 @@ namespace Tests.Internal
             {
                 UseBatchFetch = false,
                 DuplicateKeyHandling = DuplicateKeyHandling.LastWins,
-                KeyGenerator = (_, _) => sharedKey
+                KeyGenerator = _ => sharedKey
             };
 
             var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { "s1", "s2" }, options);
@@ -191,13 +191,92 @@ namespace Tests.Internal
             {
                 UseBatchFetch = false,
                 DuplicateKeyHandling = DuplicateKeyHandling.FirstWins,
-                KeyGenerator = (_, _) => sharedKey
+                KeyGenerator = _ => sharedKey
             };
 
             var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { "s1", "s2" }, options);
             sut.Load();
 
             Assert.That(sut.Get(sharedKey), Is.EqualTo("shared_first"));
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_json_key_in_known_secrets_non_batch_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string configuredSecretId = "configured-secret-id";
+            const string secretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+            const string secretString = "{\"Property\":\"value\"}";
+
+            Mock.Get(secretsManager)
+                .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == configuredSecretId), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetSecretValueResponse { ARN = secretArn, Name = secretName, SecretString = secretString });
+
+            SecretKeyGeneratorContext? captured = null;
+            var options = new SecretsManagerKnownSecretsOptions
+            {
+                UseBatchFetch = false,
+                KeyGenerator = context =>
+                {
+                    captured = context;
+                    return context.DefaultKey;
+                }
+            };
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { configuredSecretId }, options);
+            sut.Load();
+
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.SecretId, Is.EqualTo(configuredSecretId));
+            Assert.That(captured.SecretName, Is.EqualTo(secretName));
+            Assert.That(captured.SecretArn, Is.EqualTo(secretArn));
+            Assert.That(captured.RawKey, Is.EqualTo("my-secret:Property"));
+            Assert.That(captured.DefaultKey, Is.EqualTo("my-secret:Property"));
+            Assert.That(captured.JsonPath, Is.EqualTo("Property"));
+            Assert.That(captured.HasJsonPath, Is.True);
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_scalar_key_in_known_secrets_batch_mode([Frozen] IAmazonSecretsManager secretsManager, IFixture fixture)
+        {
+            const string secretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+            const string secretValue = "value";
+            const string configuredSecretId = secretName;
+
+            var batchResponse = fixture.Build<BatchGetSecretValueResponse>()
+                .With(p => p.SecretValues, new List<SecretValueEntry>
+                {
+                    new SecretValueEntry { ARN = secretArn, Name = secretName, SecretString = secretValue }
+                })
+                .With(p => p.Errors, new List<APIErrorType>())
+                .Without(p => p.NextToken)
+                .Create();
+
+            Mock.Get(secretsManager).Setup(p => p.BatchGetSecretValueAsync(It.IsAny<BatchGetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(batchResponse);
+
+            SecretKeyGeneratorContext? captured = null;
+            var options = new SecretsManagerKnownSecretsOptions
+            {
+                KeyGenerator = context =>
+                {
+                    captured = context;
+                    return context.DefaultKey;
+                }
+            };
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { configuredSecretId }, options);
+            sut.Load();
+
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.SecretId, Is.EqualTo(configuredSecretId));
+            Assert.That(captured.SecretName, Is.EqualTo(secretName));
+            Assert.That(captured.SecretArn, Is.EqualTo(secretArn));
+            Assert.That(captured.RawKey, Is.EqualTo(secretName));
+            Assert.That(captured.DefaultKey, Is.EqualTo(secretName));
+            Assert.That(captured.JsonPath, Is.Null);
+            Assert.That(captured.HasJsonPath, Is.False);
         }
 
         [Test, CustomAutoData]

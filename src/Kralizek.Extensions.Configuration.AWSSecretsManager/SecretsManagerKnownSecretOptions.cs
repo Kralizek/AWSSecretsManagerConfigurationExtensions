@@ -18,10 +18,10 @@ namespace Kralizek.Extensions.Configuration
     public sealed class SecretsManagerKnownSecretOptions
     {
         /// <summary>
-        /// Gets or sets a function that maps a <see cref="SecretListEntry"/> and raw configuration key
+        /// Gets or sets a function that maps key generation context
         /// to the final configuration key stored in the provider.
         /// </summary>
-        public Func<SecretListEntry, string, string> KeyGenerator { get; set; } = (_, key) => key;
+        public Func<SecretKeyGeneratorContext, string> KeyGenerator { get; set; } = context => context.DefaultKey;
 
         /// <summary>
         /// Gets or sets the policy applied when two keys from within the same secret

@@ -165,8 +165,9 @@ namespace Tests.Internal
 
             var options = new SecretsManagerKnownSecretOptions
             {
-                KeyGenerator = (_, key) =>
+                KeyGenerator = context =>
                 {
+                    var key = context.DefaultKey;
                     var stripped = key.StartsWith(pathPrefix) ? key.Substring(pathPrefix.Length) : key;
                     return stripped.Replace("/", ":");
                 }
@@ -191,11 +192,80 @@ namespace Tests.Internal
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(response);
 
-            var options = new SecretsManagerKnownSecretOptions { KeyGenerator = (_, _) => customKey };
+            var options = new SecretsManagerKnownSecretOptions { KeyGenerator = _ => customKey };
             var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, "my-secret", options);
             sut.Load();
 
             Assert.That(sut.Get(customKey), Is.EqualTo("value"));
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_json_key_in_known_secret_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string configuredSecretId = "configured-secret-id";
+            const string secretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+            const string secretString = "{\"Property\":\"value\"}";
+
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetSecretValueResponse { ARN = secretArn, Name = secretName, SecretString = secretString });
+
+            var contexts = new List<SecretKeyGeneratorContext>();
+            var options = new SecretsManagerKnownSecretOptions
+            {
+                KeyGenerator = context =>
+                {
+                    contexts.Add(context);
+                    return context.DefaultKey;
+                }
+            };
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, configuredSecretId, options);
+            sut.Load();
+
+            Assert.That(contexts, Has.Count.EqualTo(1));
+            var context = contexts[0];
+            Assert.That(context.SecretId, Is.EqualTo(configuredSecretId));
+            Assert.That(context.SecretName, Is.EqualTo(secretName));
+            Assert.That(context.SecretArn, Is.EqualTo(secretArn));
+            Assert.That(context.RawKey, Is.EqualTo("my-secret:Property"));
+            Assert.That(context.DefaultKey, Is.EqualTo("my-secret:Property"));
+            Assert.That(context.JsonPath, Is.EqualTo("Property"));
+            Assert.That(context.HasJsonPath, Is.True);
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_scalar_key_in_known_secret_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string configuredSecretId = "configured-secret-id";
+            const string secretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-AbCdEf";
+            const string secretName = "my-secret";
+            const string secretValue = "value";
+
+            Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetSecretValueResponse { ARN = secretArn, Name = secretName, SecretString = secretValue });
+
+            SecretKeyGeneratorContext? captured = null;
+            var options = new SecretsManagerKnownSecretOptions
+            {
+                KeyGenerator = context =>
+                {
+                    captured = context;
+                    return context.DefaultKey;
+                }
+            };
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, configuredSecretId, options);
+            sut.Load();
+
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.SecretId, Is.EqualTo(configuredSecretId));
+            Assert.That(captured.SecretName, Is.EqualTo(secretName));
+            Assert.That(captured.SecretArn, Is.EqualTo(secretArn));
+            Assert.That(captured.RawKey, Is.EqualTo(secretName));
+            Assert.That(captured.DefaultKey, Is.EqualTo(secretName));
+            Assert.That(captured.JsonPath, Is.Null);
+            Assert.That(captured.HasJsonPath, Is.False);
         }
 
         [Test, CustomAutoData]
