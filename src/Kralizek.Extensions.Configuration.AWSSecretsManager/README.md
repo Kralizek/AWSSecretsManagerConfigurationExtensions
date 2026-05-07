@@ -53,7 +53,7 @@ var configuration = new ConfigurationBuilder()
     .AddSecretsManagerDiscovery(options =>
     {
         options.SecretFilter = entry => entry.Name.StartsWith("myapp/");
-        options.KeyGenerator = (entry, key) => key.Replace("/", ":");
+        options.KeyGenerator = context => context.DefaultKey.Replace("/", ":");
     })
     .Build();
 ```

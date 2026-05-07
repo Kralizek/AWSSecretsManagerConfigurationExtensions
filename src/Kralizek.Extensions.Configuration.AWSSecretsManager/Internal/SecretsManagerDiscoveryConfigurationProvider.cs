@@ -218,17 +218,32 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         private void ProcessSecretString(Dictionary<string, string?> dict, SecretListEntry secret, string secretString)
         {
+            var secretId = !string.IsNullOrEmpty(secret.ARN) ? secret.ARN : secret.Name;
+            var resolvedKey = secret.Name ?? secretId ?? string.Empty;
             if (SecretsManagerHelpers.TryParseJson(secretString, out var jElement))
             {
-                foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, secret.Name))
+                foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, resolvedKey))
                 {
-                    var configKey = _options.KeyGenerator(secret, key);
+                    var context = SecretKeyGeneratorContextFactory.Create(
+                        secretId,
+                        secret.Name,
+                        secret.ARN,
+                        key,
+                        key,
+                        resolvedKey);
+                    var configKey = _options.KeyGenerator(context);
                     ApplyEntry(dict, configKey, value);
                 }
             }
             else
             {
-                var configKey = _options.KeyGenerator(secret, secret.Name);
+                var context = SecretKeyGeneratorContextFactory.CreateScalar(
+                    secretId,
+                    secret.Name,
+                    secret.ARN,
+                    resolvedKey,
+                    resolvedKey);
+                var configKey = _options.KeyGenerator(context);
                 ApplyEntry(dict, configKey, secretString);
             }
         }

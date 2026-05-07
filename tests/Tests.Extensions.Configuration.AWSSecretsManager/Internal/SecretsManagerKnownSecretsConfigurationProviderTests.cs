@@ -168,7 +168,7 @@ namespace Tests.Internal
             {
                 UseBatchFetch = false,
                 DuplicateKeyHandling = DuplicateKeyHandling.LastWins,
-                KeyGenerator = (_, _) => sharedKey
+                KeyGenerator = _ => sharedKey
             };
 
             var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { "s1", "s2" }, options);
@@ -191,13 +191,55 @@ namespace Tests.Internal
             {
                 UseBatchFetch = false,
                 DuplicateKeyHandling = DuplicateKeyHandling.FirstWins,
-                KeyGenerator = (_, _) => sharedKey
+                KeyGenerator = _ => sharedKey
             };
 
             var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { "s1", "s2" }, options);
             sut.Load();
 
             Assert.That(sut.Get(sharedKey), Is.EqualTo("shared_first"));
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_json_key_in_known_secrets_non_batch_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            SecretKeyGeneratorContextTestData.SetupGetSecretValueForConfiguredSecretId(
+                secretsManager,
+                SecretKeyGeneratorContextTestData.ConfiguredSecretId,
+                SecretKeyGeneratorContextTestData.JsonSecretValue);
+
+            var keyGenerator = new CapturingKeyGenerator();
+            var options = new SecretsManagerKnownSecretsOptions
+            {
+                UseBatchFetch = false,
+                KeyGenerator = keyGenerator.Generate
+            };
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { SecretKeyGeneratorContextTestData.ConfiguredSecretId }, options);
+            sut.Load();
+
+            SecretKeyGeneratorContextAssertions.AssertStandardJsonContext(
+                keyGenerator.SingleContext,
+                SecretKeyGeneratorContextTestData.ConfiguredSecretId);
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_scalar_key_in_known_secrets_batch_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            SecretKeyGeneratorContextTestData.SetupBatchGetSecretValueAny(secretsManager, SecretKeyGeneratorContextTestData.ScalarSecretValue);
+
+            var keyGenerator = new CapturingKeyGenerator();
+            var options = new SecretsManagerKnownSecretsOptions
+            {
+                KeyGenerator = keyGenerator.Generate
+            };
+
+            var sut = new SecretsManagerKnownSecretsConfigurationProvider(secretsManager, new[] { SecretKeyGeneratorContextTestData.SecretName }, options);
+            sut.Load();
+
+            SecretKeyGeneratorContextAssertions.AssertStandardScalarContext(
+                keyGenerator.SingleContext,
+                SecretKeyGeneratorContextTestData.SecretName);
         }
 
         [Test, CustomAutoData]

@@ -66,17 +66,34 @@ Options are configured via the lambda overloads of each method:
 // Before
 builder.AddSecretsManager(options =>
 {
-    options.KeyGenerator = (entry, key) => key.ToUpper();
+    options.KeyGenerator = context => context.DefaultKey.ToUpper();
     options.PollingInterval = TimeSpan.FromMinutes(5);
 });
 
 // After
 builder.AddSecretsManagerDiscovery(options =>
 {
-    options.KeyGenerator = (entry, key) => key.ToUpper();
+    options.KeyGenerator = context => context.DefaultKey.ToUpper();
     options.ReloadInterval = TimeSpan.FromMinutes(5);
 });
 ```
+
+### 2.0 beta: `KeyGenerator` now receives a context object
+
+During the 2.0 beta cycle, `KeyGenerator` was updated from a two-parameter delegate to a context-based delegate:
+
+```csharp
+// Before beta adjustment
+options.KeyGenerator = (entry, key) => key;
+
+// Current beta API
+options.KeyGenerator = context => context.DefaultKey;
+```
+
+Use `SecretKeyGeneratorContext` to inspect:
+- `SecretId`, `SecretName`, `SecretArn`
+- `RawKey`, `DefaultKey`
+- `JsonPath` / `HasJsonPath` (for JSON-derived keys)
 
 ### `IgnoreMissingValues` removed
 
@@ -214,4 +231,3 @@ A structured logging pipeline has been added:
 ```csharp
 options.ListSecretsFilters.Add(new Filter { Key = FilterNameStringType.Name, Values = new List<string> { "myapp/" } });
 ```
-

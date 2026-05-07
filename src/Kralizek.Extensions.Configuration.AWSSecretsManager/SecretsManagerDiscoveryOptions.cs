@@ -35,10 +35,16 @@ namespace Kralizek.Extensions.Configuration
         public bool UseBatchFetch { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets a function that maps a <see cref="SecretListEntry"/> and raw configuration key
+        /// Gets or sets a function that maps a <see cref="SecretKeyGeneratorContext"/>
         /// to the final configuration key stored in the provider.
         /// </summary>
-        public Func<SecretListEntry, string, string> KeyGenerator { get; set; } = (_, key) => key;
+        /// <remarks>
+        /// The default implementation returns <see cref="SecretKeyGeneratorContext.DefaultKey"/>.
+        /// Use this delegate as an advanced escape hatch when the built-in key mapping behavior
+        /// is not sufficient.
+        /// </remarks>
+        public Func<SecretKeyGeneratorContext, string> KeyGenerator { get; set; } =
+            context => context.DefaultKey;
 
         /// <summary>
         /// Gets or sets the policy applied when two secrets produce the same configuration key.

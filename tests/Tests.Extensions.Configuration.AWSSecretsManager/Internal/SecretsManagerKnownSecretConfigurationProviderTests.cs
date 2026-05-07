@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -165,8 +166,9 @@ namespace Tests.Internal
 
             var options = new SecretsManagerKnownSecretOptions
             {
-                KeyGenerator = (_, key) =>
+                KeyGenerator = context =>
                 {
+                    var key = context.DefaultKey;
                     var stripped = key.StartsWith(pathPrefix) ? key.Substring(pathPrefix.Length) : key;
                     return stripped.Replace("/", ":");
                 }
@@ -191,11 +193,96 @@ namespace Tests.Internal
 
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(response);
 
-            var options = new SecretsManagerKnownSecretOptions { KeyGenerator = (_, _) => customKey };
+            var options = new SecretsManagerKnownSecretOptions { KeyGenerator = _ => customKey };
             var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, "my-secret", options);
             sut.Load();
 
             Assert.That(sut.Get(customKey), Is.EqualTo("value"));
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_json_key_in_known_secret_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            SecretKeyGeneratorContextTestData.SetupGetSecretValueAny(secretsManager, SecretKeyGeneratorContextTestData.JsonSecretValue);
+
+            var keyGenerator = new CapturingKeyGenerator();
+            var options = new SecretsManagerKnownSecretOptions
+            {
+                KeyGenerator = keyGenerator.Generate
+            };
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, SecretKeyGeneratorContextTestData.ConfiguredSecretId, options);
+            sut.Load();
+
+            SecretKeyGeneratorContextAssertions.AssertStandardJsonContext(
+                keyGenerator.SingleContext,
+                SecretKeyGeneratorContextTestData.ConfiguredSecretId);
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_scalar_key_in_known_secret_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            SecretKeyGeneratorContextTestData.SetupGetSecretValueAny(secretsManager, SecretKeyGeneratorContextTestData.ScalarSecretValue);
+
+            var keyGenerator = new CapturingKeyGenerator();
+            var options = new SecretsManagerKnownSecretOptions
+            {
+                KeyGenerator = keyGenerator.Generate
+            };
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, SecretKeyGeneratorContextTestData.ConfiguredSecretId, options);
+            sut.Load();
+
+            SecretKeyGeneratorContextAssertions.AssertStandardScalarContext(
+                keyGenerator.SingleContext,
+                SecretKeyGeneratorContextTestData.ConfiguredSecretId);
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_created_for_each_json_property_in_known_secret_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            const string jsonSecret = "{\"TopLevel\":\"one\",\"Nested\":{\"Second\":\"two\"}}";
+
+            SecretKeyGeneratorContextTestData.SetupGetSecretValueAny(secretsManager, jsonSecret);
+
+            var keyGenerator = new CapturingKeyGenerator();
+            var options = new SecretsManagerKnownSecretOptions
+            {
+                KeyGenerator = keyGenerator.Generate
+            };
+
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, SecretKeyGeneratorContextTestData.ConfiguredSecretId, options);
+            sut.Load();
+
+            Assert.That(keyGenerator.Contexts, Has.Count.EqualTo(2));
+            Assert.That(sut.Get($"{SecretKeyGeneratorContextTestData.SecretName}:TopLevel"), Is.EqualTo("one"));
+            Assert.That(sut.Get($"{SecretKeyGeneratorContextTestData.SecretName}:Nested:Second"), Is.EqualTo("two"));
+            Assert.That(keyGenerator.Contexts.All(context => context.HasJsonPath), Is.True);
+            Assert.That(
+                keyGenerator.Contexts.Select(context => context.DefaultKey),
+                Is.EquivalentTo(new[]
+                {
+                    $"{SecretKeyGeneratorContextTestData.SecretName}:TopLevel",
+                    $"{SecretKeyGeneratorContextTestData.SecretName}:Nested:Second"
+                }));
+
+            var topLevelContext = keyGenerator.Contexts.Single(context => context.JsonPath == "TopLevel");
+            var nestedContext = keyGenerator.Contexts.Single(context => context.JsonPath == "Nested:Second");
+
+            SecretKeyGeneratorContextAssertions.AssertJsonContext(
+                topLevelContext,
+                SecretKeyGeneratorContextTestData.ConfiguredSecretId,
+                SecretKeyGeneratorContextTestData.SecretName,
+                SecretKeyGeneratorContextTestData.SecretArn,
+                $"{SecretKeyGeneratorContextTestData.SecretName}:TopLevel",
+                "TopLevel");
+            SecretKeyGeneratorContextAssertions.AssertJsonContext(
+                nestedContext,
+                SecretKeyGeneratorContextTestData.ConfiguredSecretId,
+                SecretKeyGeneratorContextTestData.SecretName,
+                SecretKeyGeneratorContextTestData.SecretArn,
+                $"{SecretKeyGeneratorContextTestData.SecretName}:Nested:Second",
+                "Nested:Second");
         }
 
         [Test, CustomAutoData]

@@ -142,10 +142,52 @@ namespace Tests.Internal
             options.UseBatchFetch = false;
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(listSecretsResponse);
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(getSecretValueResponse);
-            options.KeyGenerator = (entry, key) => newKey;
+            options.KeyGenerator = _ => newKey;
             sut.Load();
             Assert.That(sut.Get(testEntry.Name), Is.Null);
             Assert.That(sut.Get(newKey), Is.EqualTo(getSecretValueResponse.SecretString));
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_json_key_in_discovery_non_batch_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            SecretKeyGeneratorContextTestData.SetupDiscoverySecretList(secretsManager);
+            SecretKeyGeneratorContextTestData.SetupGetSecretValueAny(secretsManager, SecretKeyGeneratorContextTestData.JsonSecretValue);
+
+            var keyGenerator = new CapturingKeyGenerator();
+            var options = new SecretsManagerDiscoveryOptions
+            {
+                UseBatchFetch = false,
+                KeyGenerator = keyGenerator.Generate
+            };
+
+            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, options);
+            sut.Load();
+
+            SecretKeyGeneratorContextAssertions.AssertStandardJsonContext(
+                keyGenerator.SingleContext,
+                SecretKeyGeneratorContextTestData.SecretArn);
+        }
+
+        [Test, CustomAutoData]
+        public void Key_generator_context_is_populated_for_scalar_key_in_discovery_batch_mode([Frozen] IAmazonSecretsManager secretsManager)
+        {
+            SecretKeyGeneratorContextTestData.SetupDiscoverySecretList(secretsManager);
+            SecretKeyGeneratorContextTestData.SetupBatchGetSecretValueAny(secretsManager, SecretKeyGeneratorContextTestData.ScalarSecretValue);
+
+            var keyGenerator = new CapturingKeyGenerator();
+            var options = new SecretsManagerDiscoveryOptions
+            {
+                UseBatchFetch = true,
+                KeyGenerator = keyGenerator.Generate
+            };
+
+            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, options);
+            sut.Load();
+
+            SecretKeyGeneratorContextAssertions.AssertStandardScalarContext(
+                keyGenerator.SingleContext,
+                SecretKeyGeneratorContextTestData.SecretArn);
         }
 
         [Test, CustomAutoData]
@@ -239,7 +281,7 @@ namespace Tests.Internal
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(new ListSecretsResponse { SecretList = new List<SecretListEntry> { s1, s2 } });
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == "arn1"), It.IsAny<CancellationToken>())).ReturnsAsync(fixture.Build<GetSecretValueResponse>().With(p => p.SecretString, "v1").Without(p => p.SecretBinary).Create());
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == "arn2"), It.IsAny<CancellationToken>())).ReturnsAsync(fixture.Build<GetSecretValueResponse>().With(p => p.SecretString, "v2").Without(p => p.SecretBinary).Create());
-            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, new SecretsManagerDiscoveryOptions { DuplicateKeyHandling = DuplicateKeyHandling.Throw, KeyGenerator = (_, _) => duplicateKey, UseBatchFetch = false });
+            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, new SecretsManagerDiscoveryOptions { DuplicateKeyHandling = DuplicateKeyHandling.Throw, KeyGenerator = _ => duplicateKey, UseBatchFetch = false });
             Assert.That(sut.Load, Throws.TypeOf<InvalidOperationException>());
         }
 
@@ -252,7 +294,7 @@ namespace Tests.Internal
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(new ListSecretsResponse { SecretList = new List<SecretListEntry> { s1, s2 } });
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == "arn1"), It.IsAny<CancellationToken>())).ReturnsAsync(fixture.Build<GetSecretValueResponse>().With(p => p.SecretString, "first").Without(p => p.SecretBinary).Create());
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == "arn2"), It.IsAny<CancellationToken>())).ReturnsAsync(fixture.Build<GetSecretValueResponse>().With(p => p.SecretString, "second").Without(p => p.SecretBinary).Create());
-            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, new SecretsManagerDiscoveryOptions { DuplicateKeyHandling = DuplicateKeyHandling.FirstWins, KeyGenerator = (_, _) => duplicateKey, UseBatchFetch = false });
+            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, new SecretsManagerDiscoveryOptions { DuplicateKeyHandling = DuplicateKeyHandling.FirstWins, KeyGenerator = _ => duplicateKey, UseBatchFetch = false });
             sut.Load();
             Assert.That(sut.Get(duplicateKey), Is.EqualTo("first"));
         }
@@ -266,7 +308,7 @@ namespace Tests.Internal
             Mock.Get(secretsManager).Setup(p => p.ListSecretsAsync(It.IsAny<ListSecretsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(new ListSecretsResponse { SecretList = new List<SecretListEntry> { s1, s2 } });
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == "arn1"), It.IsAny<CancellationToken>())).ReturnsAsync(fixture.Build<GetSecretValueResponse>().With(p => p.SecretString, "first").Without(p => p.SecretBinary).Create());
             Mock.Get(secretsManager).Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == "arn2"), It.IsAny<CancellationToken>())).ReturnsAsync(fixture.Build<GetSecretValueResponse>().With(p => p.SecretString, "last").Without(p => p.SecretBinary).Create());
-            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, new SecretsManagerDiscoveryOptions { DuplicateKeyHandling = DuplicateKeyHandling.LastWins, KeyGenerator = (_, _) => duplicateKey, UseBatchFetch = false });
+            var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, new SecretsManagerDiscoveryOptions { DuplicateKeyHandling = DuplicateKeyHandling.LastWins, KeyGenerator = _ => duplicateKey, UseBatchFetch = false });
             sut.Load();
             Assert.That(sut.Get(duplicateKey), Is.EqualTo("last"));
         }

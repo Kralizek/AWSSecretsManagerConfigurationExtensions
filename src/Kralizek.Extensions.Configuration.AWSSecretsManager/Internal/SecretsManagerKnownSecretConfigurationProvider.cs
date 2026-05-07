@@ -85,13 +85,25 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, rootKey))
                 {
-                    var configKey = _options.KeyGenerator(secretEntry, key);
+                    var context = SecretKeyGeneratorContextFactory.Create(
+                        _secretId,
+                        secretEntry.Name ?? _secretId,
+                        secretEntry.ARN,
+                        key,
+                        key);
+                    var configKey = _options.KeyGenerator(context);
                     ApplyEntry(dict, configKey, value);
                 }
             }
             else
             {
-                var configKey = _options.KeyGenerator(secretEntry, rootKey);
+                var context = SecretKeyGeneratorContextFactory.CreateScalar(
+                    _secretId,
+                    secretEntry.Name ?? _secretId,
+                    secretEntry.ARN,
+                    rootKey,
+                    rootKey);
+                var configKey = _options.KeyGenerator(context);
                 ApplyEntry(dict, configKey, secretString);
             }
 

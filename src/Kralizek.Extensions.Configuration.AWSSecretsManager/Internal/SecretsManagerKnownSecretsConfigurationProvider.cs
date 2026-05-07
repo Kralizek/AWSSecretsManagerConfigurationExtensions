@@ -86,7 +86,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 var secretString = secretValue.SecretString;
                 if (secretString is null) continue;
 
-                ProcessSecretString(dict, secretEntry, rootKey, secretString);
+                ProcessSecretString(dict, secretEntry, secretId, rootKey, secretString);
                 Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded.", args: rootKey);
             }
 
@@ -178,7 +178,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                         var secretString = secretValue.SecretString;
                         if (secretString is null) continue;
 
-                        ProcessSecretString(dict, secretEntry, rootKey, secretString);
+                        ProcessSecretString(dict, secretEntry, secretId, rootKey, secretString);
                         Log(LogLevel.Debug, SecretsManagerLogEvents.SecretLoaded, "Secret {SecretName} loaded (batch).", args: rootKey);
                     }
                 }
@@ -210,19 +210,31 @@ namespace Kralizek.Extensions.Configuration.Internal
             return dict;
         }
 
-        private void ProcessSecretString(Dictionary<string, string?> dict, SecretListEntry secretEntry, string rootKey, string secretString)
+        private void ProcessSecretString(Dictionary<string, string?> dict, SecretListEntry secretEntry, string secretId, string rootKey, string secretString)
         {
             if (SecretsManagerHelpers.TryParseJson(secretString, out var jElement))
             {
                 foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, rootKey))
                 {
-                    var configKey = _options.KeyGenerator(secretEntry, key);
+                    var context = SecretKeyGeneratorContextFactory.Create(
+                        secretId,
+                        secretEntry.Name ?? secretId,
+                        secretEntry.ARN,
+                        key,
+                        key);
+                    var configKey = _options.KeyGenerator(context);
                     ApplyEntry(dict, configKey, value);
                 }
             }
             else
             {
-                var configKey = _options.KeyGenerator(secretEntry, rootKey);
+                var context = SecretKeyGeneratorContextFactory.CreateScalar(
+                    secretId,
+                    secretEntry.Name ?? secretId,
+                    secretEntry.ARN,
+                    rootKey,
+                    rootKey);
+                var configKey = _options.KeyGenerator(context);
                 ApplyEntry(dict, configKey, secretString);
             }
         }

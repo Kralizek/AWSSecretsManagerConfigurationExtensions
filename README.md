@@ -66,7 +66,7 @@ Control how secret names and JSON property paths become configuration keys:
 ```csharp
 builder.AddSecretsManagerDiscovery(options =>
 {
-    options.KeyGenerator = (entry, key) => key.Replace("/", ":");
+    options.KeyGenerator = context => context.DefaultKey.Replace("/", ":");
 });
 ```
 
