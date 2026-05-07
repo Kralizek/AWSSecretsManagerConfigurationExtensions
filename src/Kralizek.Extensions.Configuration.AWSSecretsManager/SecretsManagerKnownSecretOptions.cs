@@ -18,10 +18,16 @@ namespace Kralizek.Extensions.Configuration
     public sealed class SecretsManagerKnownSecretOptions
     {
         /// <summary>
-        /// Gets or sets a function that maps key generation context
+        /// Gets or sets a function that maps a <see cref="SecretKeyGeneratorContext"/>
         /// to the final configuration key stored in the provider.
         /// </summary>
-        public Func<SecretKeyGeneratorContext, string> KeyGenerator { get; set; } = context => context.DefaultKey;
+        /// <remarks>
+        /// The default implementation returns <see cref="SecretKeyGeneratorContext.DefaultKey"/>.
+        /// Use this delegate as an advanced escape hatch when the built-in key mapping behavior
+        /// is not sufficient.
+        /// </remarks>
+        public Func<SecretKeyGeneratorContext, string> KeyGenerator { get; set; } =
+            context => context.DefaultKey;
 
         /// <summary>
         /// Gets or sets the policy applied when two keys from within the same secret
