@@ -164,13 +164,9 @@ namespace Tests.Internal
             var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, options);
             sut.Load();
 
-            SecretKeyGeneratorContextAssertions.AssertJsonContext(
+            SecretKeyGeneratorContextAssertions.AssertStandardJsonContext(
                 keyGenerator.SingleContext,
-                expectedSecretId: SecretKeyGeneratorContextTestData.SecretArn,
-                expectedSecretName: SecretKeyGeneratorContextTestData.SecretName,
-                expectedSecretArn: SecretKeyGeneratorContextTestData.SecretArn,
-                expectedKey: SecretKeyGeneratorContextTestData.JsonGeneratedKey,
-                expectedJsonPath: SecretKeyGeneratorContextTestData.JsonPath);
+                SecretKeyGeneratorContextTestData.SecretArn);
         }
 
         [Test, CustomAutoData]
@@ -189,12 +185,9 @@ namespace Tests.Internal
             var sut = new SecretsManagerDiscoveryConfigurationProvider(secretsManager, options);
             sut.Load();
 
-            SecretKeyGeneratorContextAssertions.AssertScalarContext(
+            SecretKeyGeneratorContextAssertions.AssertStandardScalarContext(
                 keyGenerator.SingleContext,
-                expectedSecretId: SecretKeyGeneratorContextTestData.SecretArn,
-                expectedSecretName: SecretKeyGeneratorContextTestData.SecretName,
-                expectedSecretArn: SecretKeyGeneratorContextTestData.SecretArn,
-                expectedKey: SecretKeyGeneratorContextTestData.SecretName);
+                SecretKeyGeneratorContextTestData.SecretArn);
         }
 
         [Test, CustomAutoData]

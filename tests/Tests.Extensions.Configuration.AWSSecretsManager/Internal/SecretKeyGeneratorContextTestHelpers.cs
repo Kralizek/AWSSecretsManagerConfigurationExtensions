@@ -36,6 +36,27 @@ namespace Tests.Internal
 
     internal static class SecretKeyGeneratorContextAssertions
     {
+        public static void AssertStandardJsonContext(SecretKeyGeneratorContext context, string expectedSecretId)
+        {
+            AssertJsonContext(
+                context,
+                expectedSecretId,
+                SecretKeyGeneratorContextTestData.SecretName,
+                SecretKeyGeneratorContextTestData.SecretArn,
+                SecretKeyGeneratorContextTestData.JsonGeneratedKey,
+                SecretKeyGeneratorContextTestData.JsonPath);
+        }
+
+        public static void AssertStandardScalarContext(SecretKeyGeneratorContext context, string expectedSecretId)
+        {
+            AssertScalarContext(
+                context,
+                expectedSecretId,
+                SecretKeyGeneratorContextTestData.SecretName,
+                SecretKeyGeneratorContextTestData.SecretArn,
+                SecretKeyGeneratorContextTestData.SecretName);
+        }
+
         public static void AssertJsonContext(
             SecretKeyGeneratorContext context,
             string expectedSecretId,
