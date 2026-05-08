@@ -44,37 +44,3 @@ Each sample is a minimal standalone console (or web) application that demonstrat
 | **KnownSecret** | `AddSecretsManagerKnownSecret` | `GetSecretValue` | `secretsmanager:GetSecretValue` |
 
 > **Least-privilege tip**: If you know the exact ARN or name of every secret your application needs, use `AddSecretsManagerKnownSecret` or `AddSecretsManagerKnownSecrets`. Neither method calls `ListSecrets`, so you can omit `secretsmanager:ListSecrets` from your IAM policy entirely.
-
----
-
-## Key mapping guide
-
-### Default behavior: `SecretNamePathSeparator = "/"`
-
-By default, path-style secret names are mapped to .NET configuration paths:
-
-```
-/my-app/production/database  →  my-app:production:database
-```
-
-### Disable path normalization for compatibility
-
-Set `SecretNamePathSeparator = null` to restore verbatim secret-name behavior (equivalent to the 1.x default):
-
-```csharp
-options.KeyMapping.SecretNamePathSeparator = null;
-```
-
-### Load JSON secrets without the secret-name prefix
-
-Set `PrefixJsonKeysWithSecretName = false` to strip the secret name and use only the JSON property path:
-
-```csharp
-options.KeyMapping.PrefixJsonKeysWithSecretName = false;
-```
-
-See [MapConfigurationKeys](MapConfigurationKeys/Program.cs) for a full demonstration including `TargetSection`.
-
-### Advanced key customization
-
-Use `KeyGenerator` only when the built-in options are not sufficient. See [CustomizeConfigurationKeys](CustomizeConfigurationKeys/Program.cs).
