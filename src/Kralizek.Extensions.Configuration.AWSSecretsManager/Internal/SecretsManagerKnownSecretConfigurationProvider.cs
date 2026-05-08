@@ -43,7 +43,10 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         /// <inheritdoc/>
         protected override Task<Dictionary<string, string?>> FetchConfigurationCoreAsync(CancellationToken cancellationToken)
-            => FetchConfigurationAsync(cancellationToken);
+        {
+            SecretKeyMapper.ValidateOptions(_options.KeyMapping);
+            return FetchConfigurationAsync(cancellationToken);
+        }
 
         private async Task<Dictionary<string, string?>> FetchConfigurationAsync(CancellationToken cancellationToken)
         {
@@ -85,24 +88,26 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, rootKey))
                 {
+                    var defaultKey = SecretKeyMapper.MapJsonKey(key, rootKey, _options.KeyMapping);
                     var context = SecretKeyGeneratorContextFactory.Create(
                         _secretId,
                         secretEntry.Name ?? _secretId,
                         secretEntry.ARN,
                         key,
-                        key);
+                        defaultKey);
                     var configKey = _options.KeyGenerator(context);
                     ApplyEntry(dict, configKey, value);
                 }
             }
             else
             {
+                var defaultKey = SecretKeyMapper.MapScalarKey(rootKey, _options.KeyMapping);
                 var context = SecretKeyGeneratorContextFactory.CreateScalar(
                     _secretId,
                     secretEntry.Name ?? _secretId,
                     secretEntry.ARN,
                     rootKey,
-                    rootKey);
+                    defaultKey);
                 var configKey = _options.KeyGenerator(context);
                 ApplyEntry(dict, configKey, secretString);
             }
