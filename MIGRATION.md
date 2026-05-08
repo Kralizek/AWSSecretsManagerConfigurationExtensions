@@ -1,5 +1,64 @@
 # Migration Guide
 
+## 2.0.0 — Built-in key mapping (SecretNamePathSeparator default)
+
+### Default key generation now normalizes `/` in secret names
+
+The introduction of `SecretKeyMappingOptions` in 2.0.0 changed the default configuration key generation for secrets whose names contain `/`.
+
+**Before** (without `SecretKeyMappingOptions`):
+
+A secret named `/my-app/production/database` produced configuration keys like:
+
+```
+/my-app/production/database          (scalar)
+/my-app/production/database:Key      (JSON)
+```
+
+**Current 2.0 beta / 2.0.0 final behavior:**
+
+The default `SecretNamePathSeparator = "/"` replaces each `/` in the secret-name portion with the
+.NET configuration path delimiter (`:`), trimming any leading/trailing delimiters:
+
+```
+my-app:production:database           (scalar)
+my-app:production:database:Key       (JSON)
+```
+
+#### To restore the previous (verbatim) behavior
+
+Set `SecretNamePathSeparator = null` on the options:
+
+```csharp
+builder.Configuration.AddSecretsManagerKnownSecret(
+    "my-app/production",
+    options =>
+    {
+        options.KeyMapping.SecretNamePathSeparator = null;
+    });
+
+builder.Configuration.AddSecretsManagerKnownSecrets(
+    new[] { "/my-app/production", "/my-app/shared" },
+    options =>
+    {
+        options.KeyMapping.SecretNamePathSeparator = null;
+    });
+
+builder.Configuration.AddSecretsManagerDiscovery(
+    options =>
+    {
+        options.KeyMapping.SecretNamePathSeparator = null;
+    });
+```
+
+#### Custom `KeyGenerator` that relied on `/` in `DefaultKey`
+
+If you used a `KeyGenerator` that parsed or stripped `/` from `context.DefaultKey`, update it to
+work with the already-normalized (colon-separated) `DefaultKey`, or disable normalization with
+`SecretNamePathSeparator = null` and keep the existing logic unchanged.
+
+---
+
 ## 1.x → 2.0
 
 Version 2.0 replaces the single `AddSecretsManager` API with three explicit, purpose-built methods. This is a **breaking change**: all call sites must be updated.

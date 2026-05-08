@@ -24,7 +24,7 @@ namespace Kralizek.Extensions.Configuration.Internal
                 SecretArn = secretArn,
                 RawKey = rawKey,
                 DefaultKey = defaultKey,
-                JsonPath = GetJsonPath(resolvedRootKey, defaultKey)
+                JsonPath = GetJsonPath(resolvedRootKey, rawKey)
             };
         }
 

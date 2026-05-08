@@ -35,6 +35,17 @@ namespace Kralizek.Extensions.Configuration
         public bool UseBatchFetch { get; set; } = true;
 
         /// <summary>
+        /// Gets the built-in key mapping options that control how AWS secret names and values
+        /// are projected into .NET configuration keys.
+        /// </summary>
+        /// <remarks>
+        /// The mapped key is passed as <see cref="SecretKeyGeneratorContext.DefaultKey"/> to
+        /// <see cref="KeyGenerator"/>. Use <see cref="KeyGenerator"/> as an advanced escape hatch
+        /// when the built-in options are not sufficient.
+        /// </remarks>
+        public SecretKeyMappingOptions KeyMapping { get; } = new();
+
+        /// <summary>
         /// Gets or sets a function that maps a <see cref="SecretKeyGeneratorContext"/>
         /// to the final configuration key stored in the provider.
         /// </summary>

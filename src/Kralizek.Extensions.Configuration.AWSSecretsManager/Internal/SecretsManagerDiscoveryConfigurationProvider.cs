@@ -41,9 +41,12 @@ namespace Kralizek.Extensions.Configuration.Internal
 
         /// <inheritdoc/>
         protected override Task<Dictionary<string, string?>> FetchConfigurationCoreAsync(CancellationToken cancellationToken)
-            => _options.UseBatchFetch
+        {
+            SecretKeyMapper.ValidateOptions(_options.KeyMapping);
+            return _options.UseBatchFetch
                 ? FetchConfigurationBatchAsync(cancellationToken)
                 : FetchConfigurationAsync(cancellationToken);
+        }
 
         private async Task<IReadOnlyList<SecretListEntry>> FetchAllSecretsAsync(CancellationToken cancellationToken)
         {
@@ -224,12 +227,13 @@ namespace Kralizek.Extensions.Configuration.Internal
             {
                 foreach (var (key, value) in SecretsManagerHelpers.ExtractValues(jElement!, resolvedKey))
                 {
+                    var defaultKey = SecretKeyMapper.MapJsonKey(key, resolvedKey, _options.KeyMapping);
                     var context = SecretKeyGeneratorContextFactory.Create(
                         secretId,
                         secret.Name,
                         secret.ARN,
                         key,
-                        key,
+                        defaultKey,
                         resolvedKey);
                     var configKey = _options.KeyGenerator(context);
                     ApplyEntry(dict, configKey, value);
@@ -237,12 +241,13 @@ namespace Kralizek.Extensions.Configuration.Internal
             }
             else
             {
+                var defaultKey = SecretKeyMapper.MapScalarKey(resolvedKey, _options.KeyMapping);
                 var context = SecretKeyGeneratorContextFactory.CreateScalar(
                     secretId,
                     secret.Name,
                     secret.ARN,
                     resolvedKey,
-                    resolvedKey);
+                    defaultKey);
                 var configKey = _options.KeyGenerator(context);
                 ApplyEntry(dict, configKey, secretString);
             }

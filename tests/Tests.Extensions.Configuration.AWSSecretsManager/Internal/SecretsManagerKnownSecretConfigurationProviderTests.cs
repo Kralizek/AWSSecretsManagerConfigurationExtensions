@@ -140,7 +140,10 @@ namespace Tests.Internal
             var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, secretArn, new SecretsManagerKnownSecretOptions());
             sut.Load();
 
-            Assert.That(sut.Get(secretName, "Key"), Is.EqualTo("value"));
+            // With default SecretNamePathSeparator = "/" the secret name is mapped from
+            // "/App/Production/Config" to "App:Production:Config", so the JSON key "Key"
+            // is stored under "App:Production:Config:Key".
+            Assert.That(sut.Get("App:Production:Config", "Key"), Is.EqualTo("value"));
             Assert.That(sut.HasKey(secretArn, "Key"), Is.False);
         }
 
@@ -151,7 +154,6 @@ namespace Tests.Internal
             const string secretArn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:App-Production-Service-Settings-Nested-Section-AbCdEf";
             const string secretName = "/App/Production/Service/Settings/Nested/Section";
             const string secretJson = "{\"Property\":\"value\",\"Nested\":{\"Enabled\":true}}";
-            const string pathPrefix = "/App/Production/Service/Settings/";
 
             var response = new GetSecretValueResponse
             {
@@ -164,21 +166,17 @@ namespace Tests.Internal
                 .Setup(p => p.GetSecretValueAsync(It.Is<GetSecretValueRequest>(r => r.SecretId == secretArn), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(response);
 
-            var options = new SecretsManagerKnownSecretOptions
-            {
-                KeyGenerator = context =>
-                {
-                    var key = context.DefaultKey;
-                    var stripped = key.StartsWith(pathPrefix) ? key.Substring(pathPrefix.Length) : key;
-                    return stripped.Replace("/", ":");
-                }
-            };
-
-            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, secretArn, options);
+            var sut = new SecretsManagerKnownSecretConfigurationProvider(secretsManager, secretArn, new SecretsManagerKnownSecretOptions());
             sut.Load();
 
-            Assert.That(sut.Get("Nested:Section:Property"), Is.EqualTo("value"));
-            Assert.That(sut.Get("Nested:Section:Nested:Enabled"), Is.EqualTo("True"));
+            // With default SecretNamePathSeparator = "/" the secret name is mapped from
+            // "/App/Production/Service/Settings/Nested/Section" to
+            // "App:Production:Service:Settings:Nested:Section".
+            Assert.That(sut.Get("App:Production:Service:Settings:Nested:Section:Property"), Is.EqualTo("value"));
+            Assert.That(sut.Get("App:Production:Service:Settings:Nested:Section:Nested:Enabled"), Is.EqualTo("True"));
+
+            // Verify the key is NOT rooted at the ARN used to request the secret.
+            Assert.That(sut.HasKey(secretArn, "Property"), Is.False);
         }
 
         [Test, CustomAutoData]
