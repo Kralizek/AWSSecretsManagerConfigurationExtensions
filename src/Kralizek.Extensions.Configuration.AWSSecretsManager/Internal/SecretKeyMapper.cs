@@ -16,7 +16,7 @@ namespace Kralizek.Extensions.Configuration.Internal
         {
             if (options.SecretNamePathSeparator is not null && options.SecretNamePathSeparator.Length == 0)
                 throw new InvalidOperationException(
-                    $"{nameof(SecretKeyMappingOptions.SecretNamePathSeparator)} cannot be an empty string. " +
+                    $"{nameof(SecretKeyMappingOptions)}.{nameof(SecretKeyMappingOptions.SecretNamePathSeparator)} cannot be an empty string. " +
                     "Set it to null to disable secret-name separator normalization.");
         }
 

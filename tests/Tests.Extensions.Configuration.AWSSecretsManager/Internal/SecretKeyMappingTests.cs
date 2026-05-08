@@ -347,7 +347,7 @@ namespace Tests.Internal
                 .Setup(s => s.GetSecretValueAsync(It.IsAny<GetSecretValueRequest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(BuildScalarResponse("/my-app/production/database", "secret-value"));
 
-            // PrefixJsonKeysWithSecretName = false should NOT affect scalar secrets
+            // PrefixJsonKeysWithSecretName does not affect scalar secrets; the key is always the mapped secret name.
             var optionsWithPrefix = new SecretsManagerKnownSecretOptions
             {
                 KeyMapping = { PrefixJsonKeysWithSecretName = false }
