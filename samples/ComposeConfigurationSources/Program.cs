@@ -34,4 +34,4 @@ builder.AddSecretsManagerKnownSecret(
         options.KeyMapping.PrefixJsonKeysWithSecretName = false;
     });
 
-var configuration = builder.Build();
+builder.Build();

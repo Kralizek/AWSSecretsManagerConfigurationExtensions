@@ -21,4 +21,4 @@ builder.AddSecretsManagerKnownSecret("my-app/prod", options =>
     options.UseBootstrapLogging(bootstrapLoggerFactory);
 });
 
-var configuration = builder.Build();
+builder.Build();

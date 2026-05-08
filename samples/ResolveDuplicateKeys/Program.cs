@@ -24,4 +24,4 @@ builder.AddSecretsManagerKnownSecrets(
         options.DuplicateKeyHandling = DuplicateKeyHandling.LastWins;
     });
 
-var configuration = builder.Build();
+builder.Build();

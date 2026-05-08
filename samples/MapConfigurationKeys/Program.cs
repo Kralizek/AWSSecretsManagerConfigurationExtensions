@@ -45,6 +45,6 @@ builder3.AddSecretsManagerKnownSecret("/my-app/production/database", options =>
     options.KeyMapping.SecretNamePathSeparator = null;
 });
 
-var configuration1 = builder1.Build();
-var configuration2 = builder2.Build();
-var configuration3 = builder3.Build();
+builder1.Build();
+builder2.Build();
+builder3.Build();

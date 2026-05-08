@@ -12,4 +12,4 @@ var builder = new ConfigurationBuilder();
 var awsOptions = new AWSOptions { Region = Amazon.RegionEndpoint.EUWest1 };
 builder.AddSecretsManagerDiscovery(awsOptions);
 
-var configuration = builder.Build();
+builder.Build();

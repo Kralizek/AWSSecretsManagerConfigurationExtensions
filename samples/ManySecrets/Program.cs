@@ -21,4 +21,4 @@ builder.AddSecretsManagerKnownSecrets(
         options.UseBatchFetch = true; // default — fetches all secrets in a single API call
     });
 
-var configuration = builder.Build();
+builder.Build();

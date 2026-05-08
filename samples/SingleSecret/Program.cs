@@ -21,4 +21,4 @@ var builder = new ConfigurationBuilder();
 
 builder.AddSecretsManagerKnownSecret("my-app/prod");
 
-var configuration = builder.Build();
+builder.Build();

@@ -31,4 +31,4 @@ builder.AddSecretsManagerDiscovery(options =>
     };
 });
 
-var configuration = builder.Build();
+builder.Build();
