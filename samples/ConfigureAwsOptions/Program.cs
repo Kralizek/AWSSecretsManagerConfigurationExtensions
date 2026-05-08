@@ -1,3 +1,8 @@
+// Use case: I need to configure region, profile, or other AWS SDK options.
+//
+// Pass an AWSOptions instance to any AddSecretsManager* method to control
+// which region and credentials profile the client uses.
+
 using Amazon.Extensions.NETCore.Setup;
 
 using Microsoft.Extensions.Configuration;
