@@ -1,12 +1,12 @@
 # Migration Guide
 
-## 2.0.x — Built-in key mapping (SecretNamePathSeparator default change)
+## 2.0.0 — Built-in key mapping (SecretNamePathSeparator default)
 
 ### Default key generation now normalizes `/` in secret names
 
-The introduction of `SecretKeyMappingOptions` changed the default configuration key generation for secrets whose names contain `/`.
+The introduction of `SecretKeyMappingOptions` in 2.0.0 changed the default configuration key generation for secrets whose names contain `/`.
 
-**Before** (2.0.0):
+**Before** (without `SecretKeyMappingOptions`):
 
 A secret named `/my-app/production/database` produced configuration keys like:
 
@@ -15,7 +15,7 @@ A secret named `/my-app/production/database` produced configuration keys like:
 /my-app/production/database:Key      (JSON)
 ```
 
-**After** (2.0.1+):
+**Current 2.0 beta / 2.0.0 final behavior:**
 
 The default `SecretNamePathSeparator = "/"` replaces each `/` in the secret-name portion with the
 .NET configuration path delimiter (`:`), trimming any leading/trailing delimiters:

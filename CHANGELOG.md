@@ -15,29 +15,15 @@ For **breaking changes**, see [`MIGRATION.md`](MIGRATION.md).
 
 ### Added
 
-- **Built-in key mapping options** (`SecretKeyMappingOptions`) available on all three provider modes
-  (`AddSecretsManagerKnownSecret`, `AddSecretsManagerKnownSecrets`, `AddSecretsManagerDiscovery`)
-  via `options.KeyMapping`:
-  - `SecretNamePathSeparator` (default `"/"`) — replaces the separator in the AWS secret-name
-    portion of generated keys with the .NET configuration path delimiter (`:`), so a secret named
-    `/my-app/production/database` maps automatically to `my-app:production:database`.
-    Set to `null` to disable normalization; an empty string is invalid.
-  - `PrefixJsonKeysWithSecretName` (default `true`) — when `false`, strips the secret-name prefix
-    from JSON-derived keys, enabling a JSON secret to be loaded directly as normal application
-    configuration or projected into a `TargetSection` without a custom `KeyGenerator`.
-  - `TargetSection` (default `null`) — when set, prepends a fixed configuration section to all
-    generated keys (both JSON-derived and scalar).
-- `SecretKeyGeneratorContext.RawKey` now always carries the key before mapping is applied;
-  `SecretKeyGeneratorContext.DefaultKey` carries the post-mapping key passed to `KeyGenerator`.
-
 ### Changed
 
-- Default key generation now applies `SecretNamePathSeparator = "/"` to the secret-name portion of
-  all generated configuration keys. Secret names containing `/` (e.g. `/my-app/production/database`)
-  are now mapped to colon-delimited .NET paths (e.g. `my-app:production:database`) by default.
-  Users who require the previous behavior (secret names used verbatim) should set
-  `options.KeyMapping.SecretNamePathSeparator = null`.
-  See [MIGRATION.md](MIGRATION.md) for details.
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
 
 ---
 
