@@ -4,8 +4,14 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+      day: wednesday
+    groups:
+      nuget-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: "/.github"
     schedule:
       interval: weekly
+      day: wednesday
