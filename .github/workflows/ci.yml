@@ -38,7 +38,7 @@ jobs:
         run: dotnet build --configuration $CONFIGURATION --no-restore --warnaserror
 
       - name: Test
-        run: dotnet test --configuration $CONFIGURATION --no-build
+        run: dotnet test --configuration $CONFIGURATION --no-build --logger GitHubActions
 
       - name: Pack
         run: dotnet pack --configuration $CONFIGURATION --no-build --output ./artifacts/packages
