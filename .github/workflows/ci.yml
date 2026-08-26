@@ -5,34 +5,49 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  CONFIGURATION: Release
 
 jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v5
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: Restore
         run: dotnet restore
 
       - name: Format Check
-        run: dotnet format --verify-no-changes
+        run: dotnet format --verify-no-changes --no-restore
 
       - name: Build
-        run: dotnet build --no-restore -c Release -warnaserror
+        run: dotnet build --configuration $CONFIGURATION --no-restore --warnaserror
 
       - name: Test
-        run: dotnet test --no-build -c Release
+        run: dotnet test --configuration $CONFIGURATION --no-build --logger GitHubActions
 
       - name: Pack
-        run: dotnet pack --no-build -c Release
+        run: dotnet pack --configuration $CONFIGURATION --no-build --output ./artifacts/packages
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: |
+            ./artifacts/packages/*.nupkg
+            ./artifacts/packages/*.snupkg
+          if-no-files-found: error
