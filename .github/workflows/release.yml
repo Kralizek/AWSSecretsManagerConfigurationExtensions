@@ -7,50 +7,93 @@ on:
 
 permissions:
   contents: write
+  packages: write
   id-token: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  CONFIGURATION: Release
 
 jobs:
   release:
     name: Build and Publish
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v5
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: Restore
         run: dotnet restore
 
+      - name: Format Check
+        run: dotnet format --verify-no-changes --no-restore
+
       - name: Build
-        run: dotnet build --no-restore -c Release -warnaserror
+        run: dotnet build --configuration $CONFIGURATION --no-restore --warnaserror
 
       - name: Test
-        run: dotnet test --no-build -c Release
+        run: dotnet test --configuration $CONFIGURATION --no-build --logger GitHubActions
 
       - name: Pack
-        run: dotnet pack --no-restore -c Release -o ./artifacts
+        run: dotnet pack --configuration $CONFIGURATION --no-build --output ./artifacts/packages
 
-      - name: List packages
-        run: ls -la ./artifacts
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: |
+            ./artifacts/packages/*.nupkg
+            ./artifacts/packages/*.snupkg
+          if-no-files-found: error
+
+      - name: Configure GitHub Packages source
+        if: github.event_name == 'release'
+        run: >-
+          dotnet nuget add source
+          "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          --name github
+          --username "${{ github.actor }}"
+          --password "${{ github.token }}"
+          --store-password-in-clear-text
+
+      - name: Publish to GitHub Packages
+        if: github.event_name == 'release'
+        run: >-
+          dotnet nuget push
+          "./artifacts/packages/*.nupkg"
+          --source github
+          --api-key "${{ github.token }}"
+          --skip-duplicate
 
       - name: NuGet Login
         if: github.event_name == 'release'
         id: nuget-login
         uses: nuget/login@v1
         with:
-          user: Kralizek       
+          user: Kralizek
 
-      - name: Publish to NuGet
+      - name: Publish to NuGet.org
         if: github.event_name == 'release'
-        run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: >-
+          dotnet nuget push
+          "./artifacts/packages/*.nupkg"
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
 
-      - name: Add to release
+      - name: Add packages to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            ./artifacts/*.nupkg
+            ./artifacts/packages/*.nupkg
+            ./artifacts/packages/*.snupkg
