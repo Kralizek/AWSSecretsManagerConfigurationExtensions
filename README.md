@@ -1,8 +1,10 @@
 # Kralizek.Extensions.Configuration.AWSSecretsManager
 
-[![NuGet](https://img.shields.io/nuget/v/Kralizek.Extensions.Configuration.AWSSecretsManager.svg)](https://www.nuget.org/packages/Kralizek.Extensions.Configuration.AWSSecretsManager)
 [![CI](https://github.com/Kralizek/AWSSecretsManagerConfigurationExtensions/actions/workflows/ci.yml/badge.svg)](https://github.com/Kralizek/AWSSecretsManagerConfigurationExtensions/actions/workflows/ci.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/Kralizek/AWSSecretsManagerConfigurationExtensions)](https://github.com/Kralizek/AWSSecretsManagerConfigurationExtensions/releases/latest)
+[![Stable](https://img.shields.io/nuget/v/Kralizek.Extensions.Configuration.AWSSecretsManager?label=stable)](https://www.nuget.org/packages/Kralizek.Extensions.Configuration.AWSSecretsManager)
+[![Latest](https://img.shields.io/nuget/vpre/Kralizek.Extensions.Configuration.AWSSecretsManager?label=latest)](https://www.nuget.org/packages/Kralizek.Extensions.Configuration.AWSSecretsManager)
+[![Downloads](https://img.shields.io/nuget/dt/Kralizek.Extensions.Configuration.AWSSecretsManager?label=downloads)](https://www.nuget.org/packages/Kralizek.Extensions.Configuration.AWSSecretsManager)
 
 AWS Secrets Manager configuration provider for `Microsoft.Extensions.Configuration`. Load secrets directly into your .NET configuration pipeline.
 
@@ -51,7 +53,7 @@ builder.AddSecretsManagerDiscovery(options =>
     // Client-side filter
     options.SecretFilter = entry => entry.Name.StartsWith("myapp/");
 
-    // Server-side filters (reduce ListSecrets results at the API level)
+    // Server-side filters (reduce ListSecrets results)
     options.ListSecretsFilters.Add(new Filter
     {
         Key = FilterNameStringType.Name,
@@ -261,8 +263,6 @@ For local development, prefer `KnownSecret` or `KnownSecrets` with stable secret
 
 ---
 
-
-
 See [MIGRATION.md](MIGRATION.md) for the list of breaking changes.
 
 ---
@@ -275,7 +275,7 @@ See [MIGRATION.md](MIGRATION.md) for the list of breaking changes.
 * [Storing secrets CORRECTLY in .NET using AWS Secrets Manager](https://www.youtube.com/watch?v=BGW4FnEB-CM) by [Nick Chapsas](https://github.com/Elfocrash)
 * [Effortless Secret Management in .NET Using AWS Secrets Manager](https://www.youtube.com/watch?v=hDVdLNJfaNU) by [Milan Jovanović](https://github.com/m-jovanovic)
 * [Securely Integrate AWS Secrets Manager into Your ASP.NET Core API](https://blog.stackademic.com/how-to-integrate-aws-secrets-manager-into-your-asp-net-api-project-d52b3658e676) by [Javier Eduardo Mendoza Blandón](https://medium.com/@javiermendozablandon)
-* [How Best To Secure Secrets When Building .NET Applications on AWS](https://www.rahulpnath.com/blog/aws-secrets-manager/) by [Rahul Nath](https://github.com/rahulpnath)
+* [How Best To Secure Secrets When Building .NET Applications on AWS](https://www.rahulpnath.com/blog/aws-secrets-manager/) by [Rahul Nath](https://www.rahulpnath.com/)
 * [Guides: AWS Lambda (.NET C#)](https://docs.ravendb.net/start/guides/aws-lambda/overview) by RavenDB
 * [Cloud configuration providers](https://github.com/beminee/ConfigBoundNET/blob/main/docs/cloud-providers.md) by ConfigBoundNET
 * [Cloud Fundamentals: AWS Services for C# Developers](https://dometrain.com/course/cloud-fundamentals-aws-services-for-c-developers/) by [Nick Chapsas](https://github.com/Elfocrash)
