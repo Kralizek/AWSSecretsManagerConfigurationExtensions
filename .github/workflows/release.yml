@@ -70,6 +70,12 @@ jobs:
           RELEASE_CHANNEL: ${{ inputs.release_channel }}
         run: bash .github/workflows/scripts/detect-resumable-release.sh
 
+      - name: Checkout resumable release target
+        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.resumable-release.outputs.resume == 'true'
+        env:
+          TARGET: ${{ steps.resumable-release.outputs.target }}
+        run: git checkout --detach "$TARGET"
+
       - name: Determine minimum version
         if: github.event_name == 'workflow_dispatch' && (inputs.dry_run || steps.resumable-release.outputs.resume != 'true')
         id: minimum-version
@@ -100,7 +106,6 @@ jobs:
         id: manual-release
         env:
           RESUME: ${{ steps.resumable-release.outputs.resume }}
-          RESUMED_PUBLISHED: ${{ steps.resumable-release.outputs.published }}
           RESUMED_VERSION: ${{ steps.resumable-release.outputs.version }}
           RESUMED_TAG: ${{ steps.resumable-release.outputs.tag }}
           CALCULATED_VERSION: ${{ steps.calculated-version.outputs.version }}
@@ -112,13 +117,11 @@ jobs:
 
           if [[ "$RESUME" == "true" ]]; then
             echo "resume=true" >> "$GITHUB_OUTPUT"
-            echo "published=$RESUMED_PUBLISHED" >> "$GITHUB_OUTPUT"
             echo "version=$RESUMED_VERSION" >> "$GITHUB_OUTPUT"
             echo "tag=$RESUMED_TAG" >> "$GITHUB_OUTPUT"
             echo "previous-tag=" >> "$GITHUB_OUTPUT"
           else
             echo "resume=false" >> "$GITHUB_OUTPUT"
-            echo "published=false" >> "$GITHUB_OUTPUT"
             echo "version=$CALCULATED_VERSION" >> "$GITHUB_OUTPUT"
             echo "tag=$CALCULATED_TAG" >> "$GITHUB_OUTPUT"
             echo "previous-tag=$CALCULATED_PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
@@ -194,7 +197,7 @@ jobs:
           echo "Package version: ${{ steps.package-version.outputs.version }}"
 
       - name: Create or reuse draft GitHub release
-        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.manual-release.outputs.published != 'true'
+        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.manual-release.outputs.tag }}
@@ -204,7 +207,7 @@ jobs:
         run: bash .github/workflows/scripts/create-or-reuse-draft-release.sh
 
       - name: Configure GitHub Packages source
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.manual-release.outputs.published != 'true')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         run: >-
           dotnet nuget add source
           "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
@@ -214,7 +217,7 @@ jobs:
           --store-password-in-clear-text
 
       - name: Publish to GitHub Packages
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.manual-release.outputs.published != 'true')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         run: >-
           dotnet nuget push
           "./artifacts/packages/*.nupkg"
@@ -223,14 +226,14 @@ jobs:
           --skip-duplicate
 
       - name: NuGet Login
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.manual-release.outputs.published != 'true')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         id: nuget-login
         uses: nuget/login@v1
         with:
           user: Kralizek
 
       - name: Publish to NuGet.org
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.manual-release.outputs.published != 'true')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         run: >-
           dotnet nuget push
           "./artifacts/packages/*.nupkg"
@@ -239,7 +242,7 @@ jobs:
           --skip-duplicate
 
       - name: Add packages to release
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.manual-release.outputs.published != 'true')
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || steps.manual-release.outputs.tag }}
@@ -250,22 +253,22 @@ jobs:
           --repo "${{ github.repository }}"
           --clobber
 
-      - name: Publish GitHub release
-        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.manual-release.outputs.published != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.manual-release.outputs.tag }}
-        run: gh release edit "$TAG" --repo "${{ github.repository }}" --draft=false
-
       - name: Fetch manual release tag
         if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
         env:
           TAG: ${{ steps.manual-release.outputs.tag }}
         run: git fetch origin "refs/tags/$TAG:refs/tags/$TAG"
 
-      - name: Validate created release tag
+      - name: Validate manual release tag
         if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
         uses: Kralizek/github-actions/actions/validate-release@v0.2
         with:
           tag: ${{ steps.manual-release.outputs.tag }}
           prerelease: ${{ inputs.release_channel != 'stable' }}
+
+      - name: Publish GitHub release
+        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.manual-release.outputs.tag }}
+        run: gh release edit "$TAG" --repo "${{ github.repository }}" --draft=false
