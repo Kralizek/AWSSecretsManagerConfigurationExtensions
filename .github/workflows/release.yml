@@ -198,33 +198,7 @@ jobs:
           PREVIOUS_TAG: ${{ steps.manual-release.outputs['previous-tag'] }}
           RELEASE_CHANNEL: ${{ inputs.release_channel }}
           RESUME: ${{ steps.manual-release.outputs.resume }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ "$RESUME" == "true" ]]; then
-            echo "Reusing draft release $TAG."
-            exit 0
-          fi
-
-          args=(
-            "$TAG"
-            --repo "${{ github.repository }}"
-            --target "$GITHUB_SHA"
-            --title "$TAG"
-            --generate-notes
-            --draft
-          )
-
-          if [[ -n "$PREVIOUS_TAG" ]]; then
-            args+=(--notes-start-tag "$PREVIOUS_TAG")
-          fi
-
-          if [[ "$RELEASE_CHANNEL" != "stable" ]]; then
-            args+=(--prerelease)
-          fi
-
-          gh release create "${args[@]}"
+        run: bash .github/workflows/scripts/create-or-reuse-draft-release.sh
 
       - name: Configure GitHub Packages source
         if: github.event_name == 'release' || !inputs.dry_run
