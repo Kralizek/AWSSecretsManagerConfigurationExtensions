@@ -155,7 +155,7 @@ jobs:
           echo "Release channel: ${{ inputs.release_channel }}"
           echo "Package version: ${{ steps.package-version.outputs.version }}"
 
-      - name: Create GitHub release
+      - name: Create or reuse draft GitHub release
         if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
         env:
           GH_TOKEN: ${{ github.token }}
@@ -166,12 +166,24 @@ jobs:
         run: |
           set -euo pipefail
 
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            is_draft=$(gh release view "$TAG" --repo "${{ github.repository }}" --json isDraft --jq .isDraft)
+            if [[ "$is_draft" != "true" ]]; then
+              echo "Release $TAG already exists and is not a draft." >&2
+              exit 1
+            fi
+
+            echo "Reusing draft release $TAG."
+            exit 0
+          fi
+
           args=(
             "$TAG"
             --repo "${{ github.repository }}"
             --target "$GITHUB_SHA"
             --title "$TAG"
             --generate-notes
+            --draft
           )
 
           if [[ -n "$PREVIOUS_TAG" ]]; then
@@ -183,13 +195,6 @@ jobs:
           fi
 
           gh release create "${args[@]}"
-
-      - name: Validate created release tag
-        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
-        uses: Kralizek/github-actions/actions/validate-release@v0.2
-        with:
-          tag: ${{ steps.calculated-version.outputs.tag }}
-          prerelease: ${{ inputs.release_channel != 'stable' }}
 
       - name: Configure GitHub Packages source
         if: github.event_name == 'release' || !inputs.dry_run
@@ -237,3 +242,21 @@ jobs:
           ./artifacts/packages/*.snupkg
           --repo "${{ github.repository }}"
           --clobber
+
+      - name: Publish GitHub release
+        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.calculated-version.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --repo "${{ github.repository }}" --draft=false
+          git fetch origin "refs/tags/$TAG:refs/tags/$TAG"
+
+      - name: Validate created release tag
+        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+        uses: Kralizek/github-actions/actions/validate-release@v0.2
+        with:
+          tag: ${{ steps.calculated-version.outputs.tag }}
+          prerelease: ${{ inputs.release_channel != 'stable' }}
