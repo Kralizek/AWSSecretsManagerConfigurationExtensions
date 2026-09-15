@@ -61,8 +61,49 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect resumable draft release
+        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+        id: resumable-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_CHANNEL: ${{ inputs.release_channel }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          releases=$(gh api --paginate "repos/${{ github.repository }}/releases?per_page=100")
+
+          if [[ "$RELEASE_CHANNEL" == "stable" ]]; then
+            pattern='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          else
+            pattern="^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-${RELEASE_CHANNEL}\\.[0-9]+$"
+          fi
+
+          mapfile -t matching_tags < <(
+            jq -r \
+              --arg sha "$GITHUB_SHA" \
+              --arg pattern "$pattern" \
+              '.[] | select(.draft == true and .target_commitish == $sha) | .tag_name | select(test($pattern))' \
+              <<< "$releases"
+          )
+
+          if (( ${#matching_tags[@]} > 1 )); then
+            echo "Multiple matching draft releases target $GITHUB_SHA: ${matching_tags[*]}" >&2
+            exit 1
+          fi
+
+          if (( ${#matching_tags[@]} == 1 )); then
+            tag="${matching_tags[0]}"
+            echo "Resuming draft release $tag."
+            echo "resume=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "resume=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Determine minimum version
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && steps.resumable-release.outputs.resume != 'true'
         id: minimum-version
         shell: bash
         run: |
@@ -78,13 +119,39 @@ jobs:
           echo "version=${minimum_major_minor}.0" >> "$GITHUB_OUTPUT"
 
       - name: Calculate release version
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && steps.resumable-release.outputs.resume != 'true'
         id: calculated-version
         uses: Kralizek/github-actions/actions/calculate-next-release@v0.2
         with:
           bump: ${{ inputs.bump }}
           channel: ${{ inputs.release_channel != 'stable' && inputs.release_channel || '' }}
           minimum-version: ${{ steps.minimum-version.outputs.version }}
+
+      - name: Resolve manual release version
+        if: github.event_name == 'workflow_dispatch'
+        id: manual-release
+        env:
+          RESUME: ${{ steps.resumable-release.outputs.resume }}
+          RESUMED_VERSION: ${{ steps.resumable-release.outputs.version }}
+          RESUMED_TAG: ${{ steps.resumable-release.outputs.tag }}
+          CALCULATED_VERSION: ${{ steps.calculated-version.outputs.version }}
+          CALCULATED_TAG: ${{ steps.calculated-version.outputs.tag }}
+          CALCULATED_PREVIOUS_TAG: ${{ steps.calculated-version.outputs['previous-tag'] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$RESUME" == "true" ]]; then
+            echo "resume=true" >> "$GITHUB_OUTPUT"
+            echo "version=$RESUMED_VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=$RESUMED_TAG" >> "$GITHUB_OUTPUT"
+            echo "previous-tag=" >> "$GITHUB_OUTPUT"
+          else
+            echo "resume=false" >> "$GITHUB_OUTPUT"
+            echo "version=$CALCULATED_VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=$CALCULATED_TAG" >> "$GITHUB_OUTPUT"
+            echo "previous-tag=$CALCULATED_PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Validate published release
         if: github.event_name == 'release'
@@ -97,14 +164,14 @@ jobs:
       - name: Build and test
         uses: Kralizek/github-actions/actions/dotnet-build@v0.2
         env:
-          MinVerVersionOverride: ${{ github.event_name == 'workflow_dispatch' && steps.calculated-version.outputs.version || '' }}
+          MinVerVersionOverride: ${{ github.event_name == 'workflow_dispatch' && steps.manual-release.outputs.version || '' }}
         with:
           checkout: false
           global_json_file: global.json
 
       - name: Pack
         env:
-          MinVerVersionOverride: ${{ github.event_name == 'workflow_dispatch' && steps.calculated-version.outputs.version || '' }}
+          MinVerVersionOverride: ${{ github.event_name == 'workflow_dispatch' && steps.manual-release.outputs.version || '' }}
         run: dotnet pack --configuration $CONFIGURATION --no-build --output ./artifacts/packages
 
       - name: Read package version
@@ -128,7 +195,7 @@ jobs:
       - name: Validate package version
         env:
           PACKAGE_VERSION: ${{ steps.package-version.outputs.version }}
-          EXPECTED_VERSION: ${{ github.event_name == 'release' && steps.published-release.outputs.version || steps.calculated-version.outputs.version }}
+          EXPECTED_VERSION: ${{ github.event_name == 'release' && steps.published-release.outputs.version || steps.manual-release.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
@@ -159,20 +226,15 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.calculated-version.outputs.tag }}
-          PREVIOUS_TAG: ${{ steps.calculated-version.outputs['previous-tag'] }}
+          TAG: ${{ steps.manual-release.outputs.tag }}
+          PREVIOUS_TAG: ${{ steps.manual-release.outputs['previous-tag'] }}
           RELEASE_CHANNEL: ${{ inputs.release_channel }}
+          RESUME: ${{ steps.manual-release.outputs.resume }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            is_draft=$(gh release view "$TAG" --repo "${{ github.repository }}" --json isDraft --jq .isDraft)
-            if [[ "$is_draft" != "true" ]]; then
-              echo "Release $TAG already exists and is not a draft." >&2
-              exit 1
-            fi
-
+          if [[ "$RESUME" == "true" ]]; then
             echo "Reusing draft release $TAG."
             exit 0
           fi
@@ -235,7 +297,7 @@ jobs:
         if: github.event_name == 'release' || !inputs.dry_run
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || steps.calculated-version.outputs.tag }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || steps.manual-release.outputs.tag }}
         run: >-
           gh release upload "$RELEASE_TAG"
           ./artifacts/packages/*.nupkg
@@ -247,7 +309,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.calculated-version.outputs.tag }}
+          TAG: ${{ steps.manual-release.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
@@ -258,5 +320,5 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
         uses: Kralizek/github-actions/actions/validate-release@v0.2
         with:
-          tag: ${{ steps.calculated-version.outputs.tag }}
+          tag: ${{ steps.manual-release.outputs.tag }}
           prerelease: ${{ inputs.release_channel != 'stable' }}
