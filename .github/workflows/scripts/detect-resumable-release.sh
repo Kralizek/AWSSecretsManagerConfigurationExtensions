@@ -3,6 +3,7 @@ set -euo pipefail
 
 : "${GH_TOKEN:?GH_TOKEN must be set}"
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set}"
+: "${GITHUB_SHA:?GITHUB_SHA must be set}"
 : "${RELEASE_CHANNEL:?RELEASE_CHANNEL must be set}"
 : "${GITHUB_OUTPUT:?GITHUB_OUTPUT must be set}"
 
@@ -17,9 +18,11 @@ fi
 mapfile -t matching_releases < <(
   jq -rc \
     --arg pattern "$pattern" \
+    --arg sha "$GITHUB_SHA" \
     '.[]
       | select(.draft == true)
       | select(.author.login == "github-actions[bot]")
+      | select(.target_commitish == $sha)
       | select(.tag_name | test($pattern))
       | {tag: .tag_name, target: .target_commitish}' \
     <<< "$releases"
