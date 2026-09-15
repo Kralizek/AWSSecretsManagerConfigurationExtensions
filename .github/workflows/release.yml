@@ -47,6 +47,7 @@ env:
 jobs:
   release:
     name: Validate, pack, and publish
+    if: github.event_name != 'release' || github.event.release.author.login != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:
