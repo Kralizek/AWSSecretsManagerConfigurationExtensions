@@ -15,25 +15,41 @@ else
   pattern="^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-${RELEASE_CHANNEL}\\.[0-9]+$"
 fi
 
-mapfile -t matching_tags < <(
-  jq -r \
+mapfile -t matching_releases < <(
+  jq -rc \
     --arg sha "$GITHUB_SHA" \
     --arg pattern "$pattern" \
-    '.[] | select(.draft == true and .target_commitish == $sha) | .tag_name | select(test($pattern))' \
+    '.[]
+      | select(.target_commitish == $sha)
+      | select(.tag_name | test($pattern))
+      | {tag: .tag_name, draft: .draft}' \
     <<< "$releases"
 )
 
-if (( ${#matching_tags[@]} > 1 )); then
-  echo "Multiple matching draft releases target $GITHUB_SHA: ${matching_tags[*]}" >&2
+if (( ${#matching_releases[@]} > 1 )); then
+  tags=$(printf '%s\n' "${matching_releases[@]}" | jq -r .tag | paste -sd ' ' -)
+  echo "Multiple matching releases target $GITHUB_SHA: $tags" >&2
   exit 1
 fi
 
-if (( ${#matching_tags[@]} == 1 )); then
-  tag="${matching_tags[0]}"
-  echo "Resuming draft release $tag."
+if (( ${#matching_releases[@]} == 1 )); then
+  release="${matching_releases[0]}"
+  tag=$(jq -r .tag <<< "$release")
+  draft=$(jq -r .draft <<< "$release")
+
+  if [[ "$draft" == "true" ]]; then
+    echo "Resuming draft release $tag."
+    published=false
+  else
+    echo "Resuming published release $tag."
+    published=true
+  fi
+
   echo "resume=true" >> "$GITHUB_OUTPUT"
+  echo "published=$published" >> "$GITHUB_OUTPUT"
   echo "tag=$tag" >> "$GITHUB_OUTPUT"
   echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
 else
   echo "resume=false" >> "$GITHUB_OUTPUT"
+  echo "published=false" >> "$GITHUB_OUTPUT"
 fi
