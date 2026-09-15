@@ -68,7 +68,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_CHANNEL: ${{ inputs.release_channel }}
-        run: bash scripts/detect-resumable-release.sh
+        run: bash .github/workflows/scripts/detect-resumable-release.sh
 
       - name: Determine minimum version
         if: github.event_name == 'workflow_dispatch' && steps.resumable-release.outputs.resume != 'true'
