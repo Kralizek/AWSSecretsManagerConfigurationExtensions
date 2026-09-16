@@ -95,7 +95,7 @@ jobs:
       - name: Calculate release version
         if: github.event_name == 'workflow_dispatch' && (inputs.dry_run || steps.resumable-release.outputs.resume != 'true')
         id: calculated-version
-        uses: Kralizek/github-actions/actions/calculate-next-release@v0.2
+        uses: Kralizek/github-actions/actions/calculate-next-version@v0.3
         with:
           bump: ${{ inputs.bump }}
           channel: ${{ inputs.release_channel != 'stable' && inputs.release_channel || '' }}
@@ -130,13 +130,13 @@ jobs:
       - name: Validate published release
         if: github.event_name == 'release'
         id: published-release
-        uses: Kralizek/github-actions/actions/validate-release@v0.2
+        uses: Kralizek/github-actions/actions/validate-release@v0.3
         with:
           tag: ${{ github.event.release.tag_name }}
           prerelease: ${{ github.event.release.prerelease }}
 
       - name: Build and test
-        uses: Kralizek/github-actions/actions/dotnet-build@v0.2
+        uses: Kralizek/github-actions/actions/dotnet-build@v0.3
         env:
           MinVerVersionOverride: ${{ github.event_name == 'workflow_dispatch' && steps.manual-release.outputs.version || '' }}
         with:
@@ -261,7 +261,7 @@ jobs:
 
       - name: Validate manual release tag
         if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
-        uses: Kralizek/github-actions/actions/validate-release@v0.2
+        uses: Kralizek/github-actions/actions/validate-release@v0.3
         with:
           tag: ${{ steps.manual-release.outputs.tag }}
           prerelease: ${{ inputs.release_channel != 'stable' }}
