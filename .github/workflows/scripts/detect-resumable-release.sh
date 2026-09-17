@@ -4,46 +4,40 @@ set -euo pipefail
 : "${GH_TOKEN:?GH_TOKEN must be set}"
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set}"
 : "${GITHUB_SHA:?GITHUB_SHA must be set}"
-: "${RELEASE_CHANNEL:?RELEASE_CHANNEL must be set}"
+: "${TAG:?TAG must be set}"
 : "${GITHUB_OUTPUT:?GITHUB_OUTPUT must be set}"
 
-releases=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100")
+error_file=$(mktemp)
+trap 'rm -f "$error_file"' EXIT
 
-if [[ "$RELEASE_CHANNEL" == "stable" ]]; then
-  pattern='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+if release=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" 2>"$error_file"); then
+  :
+elif grep -Eq 'HTTP 404|\(HTTP 404\)' "$error_file"; then
+  echo "resume=false" >> "$GITHUB_OUTPUT"
+  exit 0
 else
-  pattern="^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-${RELEASE_CHANNEL}\\.[0-9]+$"
-fi
-
-mapfile -t matching_releases < <(
-  jq -rc \
-    --arg pattern "$pattern" \
-    --arg sha "$GITHUB_SHA" \
-    '.[]
-      | select(.draft == true)
-      | select(.author.login == "github-actions[bot]")
-      | select(.target_commitish == $sha)
-      | select(.tag_name | test($pattern))
-      | {tag: .tag_name, target: .target_commitish}' \
-    <<< "$releases"
-)
-
-if (( ${#matching_releases[@]} > 1 )); then
-  tags=$(printf '%s\n' "${matching_releases[@]}" | jq -r .tag | paste -sd ' ' -)
-  echo "Multiple resumable draft releases match channel $RELEASE_CHANNEL: $tags" >&2
+  cat "$error_file" >&2
   exit 1
 fi
 
-if (( ${#matching_releases[@]} == 1 )); then
-  release="${matching_releases[0]}"
-  tag=$(jq -r .tag <<< "$release")
-  target=$(jq -r .target <<< "$release")
+draft=$(jq -r .draft <<< "$release")
+author=$(jq -r .author.login <<< "$release")
+target=$(jq -r .target_commitish <<< "$release")
 
-  echo "Resuming draft release $tag at $target."
-  echo "resume=true" >> "$GITHUB_OUTPUT"
-  echo "tag=$tag" >> "$GITHUB_OUTPUT"
-  echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
-  echo "target=$target" >> "$GITHUB_OUTPUT"
-else
-  echo "resume=false" >> "$GITHUB_OUTPUT"
+if [[ "$draft" != "true" ]]; then
+  echo "Release $TAG already exists and is not a draft." >&2
+  exit 1
 fi
+
+if [[ "$author" != "github-actions[bot]" ]]; then
+  echo "Draft release $TAG was not created by this workflow." >&2
+  exit 1
+fi
+
+if [[ "$target" != "$GITHUB_SHA" ]]; then
+  echo "Draft release $TAG targets $target instead of current commit $GITHUB_SHA." >&2
+  exit 1
+fi
+
+echo "Resuming draft release $TAG."
+echo "resume=true" >> "$GITHUB_OUTPUT"
