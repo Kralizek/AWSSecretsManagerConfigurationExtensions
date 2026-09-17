@@ -7,11 +7,17 @@ set -euo pipefail
 : "${TAG:?TAG must be set}"
 : "${GITHUB_OUTPUT:?GITHUB_OUTPUT must be set}"
 
-release=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" 2>/dev/null || true)
+error_file=$(mktemp)
+trap 'rm -f "$error_file"' EXIT
 
-if [[ -z "$release" ]]; then
+if release=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" 2>"$error_file"); then
+  :
+elif grep -Eq 'HTTP 404|\(HTTP 404\)' "$error_file"; then
   echo "resume=false" >> "$GITHUB_OUTPUT"
   exit 0
+else
+  cat "$error_file" >&2
+  exit 1
 fi
 
 draft=$(jq -r .draft <<< "$release")
