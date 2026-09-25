@@ -95,7 +95,7 @@ jobs:
       - name: Calculate release version
         if: github.event_name == 'workflow_dispatch' && (inputs.dry_run || steps.resumable-release.outputs.resume != 'true')
         id: calculated-version
-        uses: Kralizek/github-actions/actions/calculate-next-version@v0.3
+        uses: Kralizek/github-actions/actions/calculate-next-version@v0.4
         with:
           bump: ${{ inputs.bump }}
           channel: ${{ inputs.release_channel != 'stable' && inputs.release_channel || '' }}
@@ -110,7 +110,7 @@ jobs:
           RESUMED_TAG: ${{ steps.resumable-release.outputs.tag }}
           CALCULATED_VERSION: ${{ steps.calculated-version.outputs.version }}
           CALCULATED_TAG: ${{ steps.calculated-version.outputs.tag }}
-          CALCULATED_PREVIOUS_TAG: ${{ steps.calculated-version.outputs['previous-tag'] }}
+          CALCULATED_RELEASE_NOTES_START_TAG: ${{ steps.calculated-version.outputs['release-notes-start-tag'] }}
         shell: bash
         run: |
           set -euo pipefail
@@ -119,12 +119,12 @@ jobs:
             echo "resume=true" >> "$GITHUB_OUTPUT"
             echo "version=$RESUMED_VERSION" >> "$GITHUB_OUTPUT"
             echo "tag=$RESUMED_TAG" >> "$GITHUB_OUTPUT"
-            echo "previous-tag=" >> "$GITHUB_OUTPUT"
+            echo "release-notes-start-tag=" >> "$GITHUB_OUTPUT"
           else
             echo "resume=false" >> "$GITHUB_OUTPUT"
             echo "version=$CALCULATED_VERSION" >> "$GITHUB_OUTPUT"
             echo "tag=$CALCULATED_TAG" >> "$GITHUB_OUTPUT"
-            echo "previous-tag=$CALCULATED_PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
+            echo "release-notes-start-tag=$CALCULATED_RELEASE_NOTES_START_TAG" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Validate published release
@@ -201,7 +201,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.manual-release.outputs.tag }}
-          PREVIOUS_TAG: ${{ steps.manual-release.outputs['previous-tag'] }}
+          PREVIOUS_TAG: ${{ steps.manual-release.outputs['release-notes-start-tag'] }}
           RELEASE_CHANNEL: ${{ inputs.release_channel }}
           RESUME: ${{ steps.manual-release.outputs.resume }}
         run: bash .github/workflows/scripts/create-or-reuse-draft-release.sh
