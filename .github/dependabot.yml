@@ -5,6 +5,9 @@ updates:
     schedule:
       interval: weekly
       day: wednesday
+    ignore:
+      - dependency-name: "NUnit"
+        update-types: ["version-update:semver-major"]
     groups:
       nuget-dependencies:
         patterns:
