@@ -172,6 +172,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.ensured-release.outputs.tag }}
+          EXPECTED_PRERELEASE: ${{ steps.calculated-version.outputs.prerelease }}
         shell: bash
         run: |
           set -euo pipefail
@@ -182,6 +183,10 @@ jobs:
           fi
           if [[ "$(jq -r .author.login <<< "$release")" != "github-actions[bot]" ]]; then
             echo "::error::Draft release $TAG was not created by GitHub Actions."
+            exit 1
+          fi
+          if [[ "$(jq -r .prerelease <<< "$release")" != "$EXPECTED_PRERELEASE" ]]; then
+            echo "::error::Draft release $TAG prerelease classification differs from calculated version (expected $EXPECTED_PRERELEASE)."
             exit 1
           fi
 
