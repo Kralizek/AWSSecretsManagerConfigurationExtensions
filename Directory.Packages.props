@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="AutoFixture" Version="4.18.1" />
+    <PackageVersion Include="AutoFixture.AutoMoq" Version="4.18.1" />
+    <PackageVersion Include="AutoFixture.NUnit3" Version="4.18.1" />
+    <PackageVersion Include="AWSSDK.Extensions.NETCore.Setup" Version="[4.1.0.2, 5.0.0)" />
+    <PackageVersion Include="AWSSDK.SecretsManager" Version="[4.1.1.2, 5.0.0)" />
+    <PackageVersion Include="DotNet.ReproducibleBuilds" Version="2.0.5" />
+    <PackageVersion Include="GitHubActionsTestLogger" Version="3.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
+    <PackageVersion Include="MinVer" Version="8.0.0" />
+    <PackageVersion Include="Moq" Version="4.21.0" />
+    <PackageVersion Include="nunit" Version="3.14.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="6.3.1" />
+    <PackageVersion Include="PolySharp" Version="1.17.1" />
+    <PackageVersion Include="System.Text.Json" Version="11.0.0" />
+  </ItemGroup>
+</Project>
